@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1000" height="500" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simple world map outlines -->
+  <g id="map" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5" opacity="0.8">
+    <!-- North America -->
+    <path d="M150,130 C190,130 220,160 240,200 C260,240 250,300 220,350 C170,380 150,400 150,430 L50,380 L50,230 Z" />
+    
+    <!-- South America -->
+    <path d="M220,350 C240,380 260,420 260,450 C240,470 210,470 180,450 L150,430 L150,380 Z" />
+    
+    <!-- Europe & Africa -->
+    <path d="M450,130 C480,130 500,150 500,200 C550,250 550,350 500,400 C450,450 400,450 350,400 L330,300 L400,200 Z" />
+    
+    <!-- Asia -->
+    <path d="M600,150 C650,130 700,130 750,150 C800,200 850,200 850,250 C850,300 800,350 750,400 C700,420 650,420 600,400 C550,350 520,300 500,200 C520,180 570,170 600,150 Z" />
+    
+    <!-- Australia -->
+    <path d="M800,400 C830,390 850,400 850,420 C850,440 830,450 800,450 C770,440 770,410 800,400 Z" />
+    
+    <!-- Grid lines -->
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M0,100 L1000,100" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M0,200 L1000,200" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M0,300 L1000,300" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M0,400 L1000,400" />
+    
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M100,0 L100,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M200,0 L200,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M300,0 L300,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M400,0 L400,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M500,0 L500,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M600,0 L600,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M700,0 L700,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M800,0 L800,500" />
+    <path stroke="#bae6fd" stroke-dasharray="2,2" d="M900,0 L900,500" />
+  </g>
+</svg> 

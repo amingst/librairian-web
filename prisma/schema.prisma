@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Document {
+  id             String   @id
+  oldId          String?  // Store the original hashed ID here
+  document       Json     // The full JSON document
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Document metadata
+  documentUrl       String?
+  processingDate    DateTime?
+  pageCount         Int?
+  title             String?
+  summary           String?  @db.Text
+  fullText          String?  @db.Text
+  documentType      String?
+  
+  // Arrays for data storage (not indexed)
+  allNames          String[]
+  allPlaces         String[]
+  allDates          String[]
+  allObjects        String[]
+  stamps            String[]
+  
+  // Search field - concatenated text for full-text search
+  searchText        String?  @db.Text
+  
+  // Normalized dates for range searching
+  normalizedDates   DateTime[]
+  earliestDate      DateTime?
+  latestDate        DateTime?
+  
+  // Boolean flags for quick filtering
+  hasHandwrittenNotes Boolean @default(false)
+  hasStamps          Boolean @default(false)
+  hasFullText        Boolean @default(false)
+  
+  // Processing status tracking
+  processingStage    String?  // 'pending', 'downloading', 'processing', 'completed', 'failed'
+  processingSteps    String[] // Array of completed steps: 'download', 'conversion', 'analysis', 'publishing', 'complete'
+  lastProcessed      DateTime?
+  processingError    String?  @db.Text
+  archiveId          String?  // References the external archive ID for this document
+  
+  // References to related models
+  pages            Page[]
+  handwrittenNotes HandwrittenNote[]
+  documentStamps   DocumentStamp[]
+  
+  // Efficient indexes (keeping only what's necessary)
+  @@index([documentType])
+  @@index([hasHandwrittenNotes])
+  @@index([hasStamps])
+  @@index([hasFullText])
+  @@index([earliestDate, latestDate])
+  @@index([processingStage])
+  @@index([archiveId])
+}
+
+model Page {
+  id           String   @id @default(cuid())
+  documentId   String
+  pageNumber   Int
+  imagePath    String
+  summary      String?  @db.Text
+  fullText     String?  @db.Text
+  hasImage     Boolean  @default(false)
+  hasText      Boolean  @default(false)
+  processedAt  DateTime?
+  
+  // Relation to parent document
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Composite unique constraint
+  @@unique([documentId, pageNumber])
+  @@index([pageNumber])
+  @@index([hasImage])
+  @@index([hasText])
+}
+
+model HandwrittenNote {
+  id           String   @id @default(cuid())
+  documentId   String
+  pageNumber   Int
+  content      String   @db.Text
+  location     String?
+  
+  // Relation to parent document
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  @@index([documentId, pageNumber])
+  @@index([content])
+}
+
+model DocumentStamp {
+  id           String   @id @default(cuid())
+  documentId   String
+  pageNumber   Int
+  type         String?
+  date         String?
+  text         String
+  
+  // Relation to parent document
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  @@index([documentId, pageNumber])
+  @@index([type])
+  @@index([date])
+  @@index([text])
+}

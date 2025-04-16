@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat Test</title>
+  <style>
+    .message-container { 
+      height: 300px; 
+      overflow: auto; 
+      border: 1px solid #ccc; 
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .user { color: blue; }
+    .assistant { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Chat Test</h1>
+  <div id="messages" class="message-container"></div>
+  <input type="text" id="message-input" placeholder="Type your message">
+  <button id="send-btn">Send</button>
+
+  <script>
+    const messagesContainer = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-btn');
+    let dialogueId = null;
+    let eventSource = null;
+
+    function connectToEventStream(id) {
+      console.log(`Connecting to event stream for id: ${id}`);
+      
+      // Close existing connection
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      // Create event source with CORRECT URL
+      eventSource = new EventSource(`/api/generate/open-stream?id=${id}`);
+      
+      eventSource.addEventListener('connected', (event) => {
+        console.log('Connected:', event.data);
+        addMessage('system', 'Connected to event stream');
+      });
+      
+      eventSource.addEventListener('textChunk', (event) => {
+        console.log('Text chunk:', event.data);
+        const data = JSON.parse(event.data);
+        
+        if (data.role === 'assistant') {
+          // Find or create message element
+          let msgElem = document.querySelector(`.assistant[data-id="${id}"]`);
+          
+          if (!msgElem) {
+            msgElem = document.createElement('div');
+            msgElem.className = 'message assistant';
+            msgElem.dataset.id = id;
+            messagesContainer.appendChild(msgElem);
+          }
+          
+          // Update content
+          msgElem.textContent = (msgElem.textContent || '') + data.text;
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      });
+      
+      eventSource.addEventListener('error', (event) => {
+        console.error('EventSource error:', event);
+        addMessage('system', 'Connection error. Reconnecting...');
+        
+        // Auto-reconnect after delay
+        setTimeout(() => {
+          connectToEventStream(id);
+        }, 3000);
+      });
+    }
+
+    function addMessage(role, text) {
+      const msgElem = document.createElement('div');
+      msgElem.className = `message ${role}`;
+      msgElem.textContent = text;
+      messagesContainer.appendChild(msgElem);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+      
+      addMessage('user', message);
+      messageInput.value = '';
+      
+      try {
+        const response = await fetch('/api/generate/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userInput: message,
+            dialogueId: dialogueId,
+            conversationHistory: JSON.stringify([
+              {
+                role: 'user',
+                content: message
+              }
+            ]),
+            personality: JSON.stringify({
+              name: "Assistant",
+              model: "grok-2",
+              temperature: 0.7,
+              systemPrompt: "You are a helpful assistant.",
+              voices: {
+                elevenLabs: {
+                  voice_id: "pNInz6obpgDQGcFmaJgB",
+                  model_id: "eleven_turbo_v2",
+                  stability: 0.5,
+                  similarity_boost: 0.75
+                }
+              }
+            })
+          })
+        });
+        
+        const data = await response.json();
+        console.log('Response:', data);
+        
+        if (data.success) {
+          dialogueId = data.dialogueId;
+          connectToEventStream(dialogueId);
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        addMessage('system', 'Error sending message');
+      }
+    }
+
+    // Event handlers
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
