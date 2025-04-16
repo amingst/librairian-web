@@ -1,7 +1,7 @@
 {
   "name": "Librairian",
   "version": "0.1.0",
-  "description": "AI assistant document Analysis and Search Interface, featuring the JFK Documents",
+  "description": "AI assisted document analysis and search interface, featuring the JFK Documents",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "next dev",
