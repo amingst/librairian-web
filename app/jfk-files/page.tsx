@@ -36,6 +36,11 @@ import Alert from "@mui/material/Alert";
 import PopulateArchivesButton from '../components/PopulateArchivesButton';
 import CleanupDocumentsButton from '../components/CleanupDocumentsButton';
 import { AddToDocumentDock } from '../../components/ui/AddToDocumentDock';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import ImageIcon from '@mui/icons-material/Image';
+import StopIcon from '@mui/icons-material/Stop';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 // Import our custom hooks
 import { useJfkDocuments } from '../../hooks/jfk/useJfkDocuments';
@@ -80,6 +85,12 @@ export default function JFKFilesPage() {
     setLocalDocumentIdMap(documentIdMap);
   }, [documentIdMap]);
 
+  // Replace limitToImageAnalysis with processingMode
+  const [processingMode, setProcessingMode] = useState<'full' | 'images-only' | 'stop-at-image'>('full');
+  
+  // Derived state for compatibility with existing code
+  const limitToImageAnalysis = processingMode === 'images-only';
+
   const {
     processingUpdates,
     isProcessingAll,
@@ -89,7 +100,6 @@ export default function JFKFilesPage() {
     activeProcessingCount,
     concurrencyLimit,
     setConcurrencyLimit,
-    limitToImageAnalysis,
     setLimitToImageAnalysis,
     processDocument,
     processAllDocuments,
@@ -115,11 +125,38 @@ export default function JFKFilesPage() {
       }
     }
   );
+  
+  // Effect to handle processing mode changes - now after useJfkProcessing call
+  useEffect(() => {
+    // Update the limitToImageAnalysis state when processingMode changes
+    if (processingMode === 'images-only') {
+      setLimitToImageAnalysis(true);
+    } else {
+      setLimitToImageAnalysis(false);
+    }
+    
+    // If we're in stop-at-image mode, we'll need to implement a custom behavior
+    // This would typically involve an API call to update server-side settings
+    if (processingMode === 'stop-at-image') {
+      console.log('Stop at image analysis mode activated');
+      // Here you would make an API call to set the server-side flag
+    }
+  }, [processingMode, setLimitToImageAnalysis]);
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmationAction, setConfirmationAction] = useState<null | (() => void)>(null);
   const [confirmationMessage, setConfirmationMessage] = useState("");
   const [confirmationTitle, setConfirmationTitle] = useState("");
+  
+  // Handler for processing mode changes
+  const handleProcessingModeChange = (
+    event: React.MouseEvent<HTMLElement>, 
+    newMode: 'full' | 'images-only' | 'stop-at-image' | null
+  ) => {
+    if (newMode !== null) {
+      setProcessingMode(newMode);
+    }
+  };
 
   // Function to handle document processing with confirmation
   const handleProcessDocument = async (documentId: string) => {
@@ -129,12 +166,14 @@ export default function JFKFilesPage() {
       setConfirmationMessage(`Are you sure you want to process document ${documentId}?`);
       setConfirmationAction(() => async () => {
         try {
-      await processDocument(documentId);
+          // Instead of passing an options object, we'll need to call the function directly
+          // The hook doesn't support options, but it uses limitToImageAnalysis internally
+          await processDocument(documentId);
         } catch (err) {
           console.error('Error processing document:', err);
         }
       });
-        } catch (error) {
+    } catch (error) {
       console.error('Error preparing to process document:', error);
     }
   };
@@ -186,7 +225,16 @@ export default function JFKFilesPage() {
             setConfirmDialogOpen(true);
             setConfirmationTitle("Process All Documents");
             setConfirmationMessage("Are you sure you want to process all pending documents? This may take a long time.");
-            setConfirmationAction(() => processAllDocuments);
+            setConfirmationAction(() => () => {
+              // Apply the appropriate processing mode settings before processing
+              if (processingMode === 'stop-at-image') {
+                // Here is where you would set any global flags needed for server-side
+                localStorage.setItem('jfk_processing_mode', 'stop-at-image');
+              } else {
+                localStorage.removeItem('jfk_processing_mode');
+              }
+              processAllDocuments();
+            });
           }}
           disabled={isProcessingAll}
           style={{ marginRight: '0.5rem', background: '#1e3a8a' }}
@@ -240,19 +288,31 @@ export default function JFKFilesPage() {
           </Select>
         </FormControl>
         
-        <FormControlLabel
-          control={
-            <Switch
-              checked={limitToImageAnalysis} 
-              onChange={(e) => setLimitToImageAnalysis(e.target.checked)}
-              name="limitToImageAnalysis"
-              color="primary"
-              disabled={isProcessingAll}
-            />
-          }
-          label="Process Images Only"
-        />
-          </div>
+        <ToggleButtonGroup
+          value={processingMode}
+          exclusive
+          onChange={handleProcessingModeChange}
+          aria-label="processing mode"
+          size="small"
+          disabled={isProcessingAll}
+        >
+          <ToggleButton value="full" aria-label="full processing">
+            <Tooltip title="Full Processing">
+              <SettingsIcon />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="images-only" aria-label="process images only">
+            <Tooltip title="Process Images Only">
+              <ImageIcon />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="stop-at-image" aria-label="stop at image analysis">
+            <Tooltip title="Stop at Image Analysis">
+              <StopIcon />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </div>
       
       {isProcessingAll && (
         <div style={{ marginBottom: '1rem' }}>
@@ -326,43 +386,45 @@ export default function JFKFilesPage() {
             </div>
       )}
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div>
-          <Typography variant="body2" color="textSecondary">
-            Showing {documents.length} of {totalDocuments} documents | Page {currentPage} of {totalPages}
-          </Typography>
-          </div>
-        <div>
-          <Button 
-            onClick={goToPrevPage} 
-            disabled={currentPage === 1}
-            style={{ minWidth: '40px', marginRight: '0.5rem' }}
-          >
-            &laquo;
-          </Button>
-          <Button 
-            onClick={goToNextPage} 
-            disabled={currentPage === totalPages}
-            style={{ minWidth: '40px' }}
-          >
-            &raquo;
-          </Button>
-        </div>
-      </div>
-      
       <TableContainer component={Paper} style={{ marginBottom: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
         <Table aria-label="JFK Files table">
           <TableHead style={{ background: '#f3f4f6' }}>
               <TableRow>
               <TableCell style={{ fontWeight: 600 }}>Document ID</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Status</TableCell>
-              <TableCell style={{ fontWeight: 600 }}>Updated</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Page Count</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>People</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Places</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Dates</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Objects</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Last Updated</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Title/Source</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              // Extract or create empty analytics object if it doesn't exist
+              // Use type assertion to tell TypeScript about analytics property
+              const docWithAnalytics = doc as JFKDocument & { 
+                analytics?: { 
+                  peopleCount: number; 
+                  placesCount: number; 
+                  datesCount: number; 
+                  objectsCount: number; 
+                  inQueue: boolean;
+                } 
+              };
+              
+              const analytics = docWithAnalytics.analytics || {
+                peopleCount: 0,
+                placesCount: 0,
+                datesCount: 0,
+                objectsCount: 0,
+                inQueue: false
+              };
+              
+              return (
               <TableRow key={doc.id}>
                   <TableCell>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -412,6 +474,21 @@ export default function JFKFilesPage() {
                   )}
                   </TableCell>
                   <TableCell>
+                    {doc.pageCount && doc.pageCount > 0 ? `${doc.pageCount} pages` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {analytics.peopleCount > 0 ? `${analytics.peopleCount} people` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {analytics.placesCount > 0 ? `${analytics.placesCount} places` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {analytics.datesCount > 0 ? `${analytics.datesCount} dates` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {analytics.objectsCount > 0 ? `${analytics.objectsCount} objects` : '-'}
+                  </TableCell>
+                  <TableCell>
                   {formatDate(doc.lastUpdated)}
                   </TableCell>
                   <TableCell>
@@ -442,14 +519,19 @@ export default function JFKFilesPage() {
                     )}
                     
                     {doc.analysisComplete ? (
-                      <Button 
-                        variant="outlined" 
-                        color="success" 
-                        size="small"
-                        style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                      >
-                        Ready
-                      </Button>
+                      <>
+                        <Tooltip title="View document">
+                          <span className="flex items-center">
+                            <VisibilityIcon fontSize="small" style={{ marginRight: '4px' }} />
+                            {analytics.inQueue && <span style={{ fontSize: '0.7rem' }}>In Queue</span>}
+                          </span>
+                        </Tooltip>
+                        {!analytics.inQueue && (
+                          <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>
+                            +Add To Queue
+                          </span>
+                        )}
+                      </>
                     ) : doc.processingStatus === 'processing' ? (
                       <CircularProgress size={24} />
                       ) : (
@@ -488,28 +570,105 @@ export default function JFKFilesPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+            })}
             </TableBody>
           </Table>
         </TableContainer>
         
+      {/* Add document count information right before pagination */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: '0.5rem'
+      }}>
+        <Typography variant="body2" color="textSecondary">
+          Showing {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalDocuments)} of {totalDocuments} documents
+        </Typography>
+      </div>
+      
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Button 
+              onClick={() => setCurrentPage(1)} 
+              disabled={currentPage === 1}
+              variant="outlined"
+              size="small"
+              style={{ minWidth: '60px' }}
+            >
+              START
+            </Button>
             <Button 
               onClick={goToPrevPage} 
               disabled={currentPage === 1}
-            variant="outlined"
-            style={{ minWidth: '80px' }}
+              variant="outlined"
+              size="small"
+              style={{ minWidth: '80px' }}
             >
-              Previous
+              PREVIOUS
             </Button>
+            
+            <div style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              margin: '0 0.5rem'
+            }}>
+              <Box 
+                component="span" 
+                sx={{ 
+                  px: 2, 
+                  py: 1, 
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.25rem',
+                  bgcolor: '#f8fafc',
+                  fontWeight: 'medium',
+                  fontSize: '0.875rem',
+                  display: 'flex', 
+                  alignItems: 'center'
+                }}
+              >
+                Page
+                <TextField
+                  size="small"
+                  value={currentPage}
+                  onChange={(e) => {
+                    const pageNum = parseInt(e.target.value);
+                    if (!isNaN(pageNum) && pageNum > 0 && pageNum <= totalPages) {
+                      setCurrentPage(pageNum);
+                    }
+                  }}
+                  inputProps={{
+                    min: 1,
+                    max: totalPages,
+                    style: { 
+                      width: '40px', 
+                      padding: '4px 8px',
+                      margin: '0 8px',
+                      textAlign: 'center'
+                    }
+                  }}
+                />
+                of {totalPages}
+              </Box>
+            </div>
+            
             <Button 
               onClick={goToNextPage} 
-            disabled={currentPage === totalPages}
-            variant="contained"
-            style={{ minWidth: '80px', background: '#1e3a8a' }}
+              disabled={currentPage === totalPages}
+              variant="outlined"
+              size="small"
+              style={{ minWidth: '80px' }}
             >
-              Next
+              NEXT
+            </Button>
+            <Button 
+              onClick={() => setCurrentPage(totalPages)} 
+              disabled={currentPage === totalPages}
+              variant="outlined"
+              size="small"
+              style={{ minWidth: '60px' }}
+            >
+              END
             </Button>
         </div>
       </div>

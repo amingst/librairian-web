@@ -77,10 +77,10 @@ export default function PopulateArchivesButton() {
         {isPopulating ? (
           <>
             <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
-            Populating Archives...
+            Populating Assassination Records...
           </>
         ) : (
-          <>Populate Archives from NARA</>
+          <>Populate from JFK Assassination Records at NARA</>
         )}
       </Button>
       

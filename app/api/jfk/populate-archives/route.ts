@@ -9,6 +9,24 @@ const prisma = new PrismaClient();
 const BASE_URL = 'https://www.archives.gov';
 const TARGET_URL = 'https://www.archives.gov/research/jfk/release-2025';
 
+// Function to extract release date from URL
+function extractReleaseDate(url: string): Date {
+  // URL pattern might be like: /files/research/jfk/releases/2025/0318/file.pdf
+  // or /files/research/jfk/releases/2025/0403/file.pdf
+  const datePattern = /releases\/\d{4}\/(\d{2})(\d{2})\//;
+  const match = url.match(datePattern);
+  
+  if (match) {
+    const month = parseInt(match[1]);
+    const day = parseInt(match[2]);
+    // Use 2025 as default year for these releases
+    return new Date(2025, month - 1, day);
+  }
+  
+  // Default to March 18, 2025 if pattern not found
+  return new Date('2025-03-18');
+}
+
 // Fetch all JFK documents from archives.gov using Puppeteer
 // This directly adapts the user's working download script
 async function fetchAllArchiveDocuments() {
@@ -62,13 +80,16 @@ async function fetchAllArchiveDocuments() {
         // Extract ID without the .pdf extension
         const id = filename.replace('.pdf', '');
         
+        // Extract release date from URL
+        const releaseDate = extractReleaseDate(relativeUrl);
+        
         return {
           id: id, // Remove .pdf extension from the ID
           archiveId: id, // Use consistent ID without extension
           title: `JFK Document ${id}`,
           pageCount: 0, // Will be determined during processing
           fullUrl: fullUrl,
-          releaseDate: new Date('2025-03-18').toISOString()
+          releaseDate: releaseDate.toISOString()
         };
       }).filter(Boolean); // Remove any null items
       
@@ -88,24 +109,28 @@ async function fetchAllArchiveDocuments() {
     
     // Return a few known valid document IDs as fallback
     console.log('Returning fallback document IDs...');
-    return [
-      {
-        id: "104-10003-10041", // Remove .pdf extension
-        archiveId: "104-10003-10041", // Remove .pdf extension
-        title: "JFK Document 104-10003-10041",
-        pageCount: 0,
-        fullUrl: `${BASE_URL}/files/research/jfk/releases/2025/0318/104-10003-10041.pdf`,
-        releaseDate: new Date('2025-03-18').toISOString()
-      },
-      {
-        id: "104-10004-10143", // Remove .pdf extension
-        archiveId: "104-10004-10143", // Remove .pdf extension
-        title: "JFK Document 104-10004-10143",
-        pageCount: 0,
-        fullUrl: `${BASE_URL}/files/research/jfk/releases/2025/0318/104-10004-10143.pdf`,
-        releaseDate: new Date('2025-03-18').toISOString()
-      }
+    
+    // Sample URLs from different release dates
+    const fallbackUrls = [
+      '/files/research/jfk/releases/2025/0318/104-10003-10041.pdf',
+      '/files/research/jfk/releases/2025/0403/104-10004-10143.pdf'
     ];
+    
+    return fallbackUrls.map(relativeUrl => {
+      const filename = path.basename(relativeUrl);
+      const id = filename.replace('.pdf', '');
+      const fullUrl = `${BASE_URL}${relativeUrl}`;
+      const releaseDate = extractReleaseDate(relativeUrl);
+      
+      return {
+        id: id,
+        archiveId: id,
+        title: `JFK Document ${id}`,
+        pageCount: 0,
+        fullUrl: fullUrl,
+        releaseDate: releaseDate.toISOString()
+      };
+    });
   }
 }
 

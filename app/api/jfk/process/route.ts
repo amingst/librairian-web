@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from '@prisma/client';
 import cheerio from 'cheerio';
 // import AWS from 'aws-sdk';
+import { getArchivesGovUrl } from '../../../../utils/jfk/docUtils';
 
 const prisma = new PrismaClient();
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
@@ -759,10 +760,9 @@ export async function POST(request: Request) {
     // Clean up the document ID to ensure it's in the correct format (no leading slashes)
     const cleanDocId = documentId ? documentId.replace(/^\/+/, '') : request.headers.get('X-Document-ID') || 'unknown';
 
-    // If documentUrl is not provided, construct it using the correct archives.gov path
-    // Format should be: https://www.archives.gov/files/research/jfk/releases/2025/0318/104-10004-10143.pdf
-    const fullDocumentUrl = documentUrl ||
-      `https://www.archives.gov/files/research/jfk/releases/2025/0318/${cleanDocId}.pdf`;
+    // If documentUrl is not provided, construct it using our utility function
+    // This will handle different release dates correctly
+    const fullDocumentUrl = documentUrl || getArchivesGovUrl(cleanDocId);
     
     console.log(`Processing document: ${cleanDocId} with URL: ${fullDocumentUrl}`);
     console.log(`Requested steps: ${steps.length > 0 ? steps.join(", ") : "all"}`);

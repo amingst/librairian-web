@@ -34,8 +34,33 @@ export const getDocumentPdfUrl = (frontendId: string, documentIdMap: Record<stri
 };
 
 // Get the archives.gov source URL for a document
-export const getArchivesGovUrl = (documentId: string): string => {
-  return `https://www.archives.gov/files/research/jfk/releases/2025/0318/${documentId}.pdf`;
+export const getArchivesGovUrl = (documentId: string, releaseDate?: string): string => {
+  // Default release path for March 18, 2025
+  let releasePath = '0318';
+  
+  // If we have a release date, parse it
+  if (releaseDate) {
+    try {
+      const date = new Date(releaseDate);
+      // Format the month and day as MM/DD
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      releasePath = month + day;
+    } catch (e) {
+      console.error('Error parsing release date:', e);
+      // Fall back to default
+    }
+  } else {
+    // If no release date provided, try to determine from known release patterns
+    // April 3 release IDs tend to be higher ranges (experimental)
+    // This is a temporary solution - ideally we should store and look up the release date
+    const isAprilRelease = documentId.startsWith('2023') || documentId.startsWith('2021');
+    if (isAprilRelease) {
+      releasePath = '0403';
+    }
+  }
+  
+  return `https://www.archives.gov/files/research/jfk/releases/2025/${releasePath}/${documentId}.pdf`;
 };
 
 // Format a date string for display
