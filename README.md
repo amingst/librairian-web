@@ -32,6 +32,21 @@ Librairian Web provides an interface for interacting with a collection of JFK-re
 
 - Node.js 18+
 - NPM or Yarn
+- PostgreSQL 12+ (running on port 5432)
+
+### Database Setup
+
+1. Create a PostgreSQL database named `jfk_documents`:
+   ```
+   createdb jfk_documents
+   ```
+   
+   If you need to specify a user or different configuration, update the `DATABASE_URL` in your `.env.local` file.
+
+2. Run the database migrations:
+   ```
+   npx prisma migrate dev
+   ```
 
 ### Installation
 
@@ -51,6 +66,7 @@ Librairian Web provides an interface for interacting with a collection of JFK-re
 3. Configure environment variables:
    Create a `.env.local` file in the root directory with the following variables:
    ```
+   DATABASE_URL="postgresql://user@localhost:5432/jfk_documents?schema=public"
    NEXT_PUBLIC_API_URL=https://api.oip.onl
    NEXT_PUBLIC_WEBSITE_URL=http://localhost:3000
    JWT_SECRET=your-jwt-secret
@@ -58,14 +74,30 @@ Librairian Web provides an interface for interacting with a collection of JFK-re
    NEXTAUTH_SECRET=your-nextauth-secret
    ```
 
-4. Run the development server:
+### Running the Application
+
+You can run the application using the provided shell script, which will run the database migrations and start the development server:
+
+```bash
+chmod +x run-jfk-files.sh
+./run-jfk-files.sh
+```
+
+Alternatively, you can run the commands manually:
+
+1. Run Prisma migrations:
+   ```
+   npx prisma migrate dev
+   ```
+
+2. Start the development server:
    ```
    npm run dev
    # or
    yarn dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
 ## Project Structure
 
