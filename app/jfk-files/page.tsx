@@ -746,22 +746,62 @@ export default function JFKFilesPage() {
                   </TableCell>
                   <TableCell>
                     {doc.allNames && doc.allNames.length > 0
-                      ? doc.allNames.join(', ')
+                      ? (
+                        <div style={{ 
+                          maxHeight: '150px', 
+                          overflowY: 'auto', 
+                          maxWidth: '300px',
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {doc.allNames.join(', ')}
+                        </div>
+                      )
                       : 'None'}
                   </TableCell>
                   <TableCell>
                     {doc.allPlaces && doc.allPlaces.length > 0
-                      ? doc.allPlaces.join(', ')
+                      ? (
+                        <div style={{ 
+                          maxHeight: '150px', 
+                          overflowY: 'auto', 
+                          maxWidth: '300px',
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {doc.allPlaces.join(', ')}
+                        </div>
+                      )
                       : 'None'}
                   </TableCell>
                   <TableCell>
                     {doc.allDates && doc.allDates.length > 0
-                      ? doc.allDates.join(', ')
+                      ? (
+                        <div style={{ 
+                          maxHeight: '150px', 
+                          overflowY: 'auto', 
+                          maxWidth: '300px',
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {doc.allDates.join(', ')}
+                        </div>
+                      )
                       : 'None'}
                   </TableCell>
                   <TableCell>
                     {doc.allObjects && doc.allObjects.length > 0
-                      ? doc.allObjects.join(', ')
+                      ? (
+                        <div style={{ 
+                          maxHeight: '150px', 
+                          overflowY: 'auto', 
+                          maxWidth: '300px',
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {doc.allObjects.join(', ')}
+                        </div>
+                      )
                       : 'None'}
                   </TableCell>
                   <TableCell>
