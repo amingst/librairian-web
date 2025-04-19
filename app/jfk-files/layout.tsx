@@ -69,7 +69,7 @@ export default function JFKFilesLayout({
 }) {
   return (
     <div className="jfk-files-layout">
-      <AuthProvider>
+      {/* <AuthProvider> */}
         <DocumentGroupProvider>
           <div className={`${inter.className} flex flex-col min-h-screen`}>
             <header style={{ 
@@ -115,7 +115,7 @@ export default function JFKFilesLayout({
             {children}
           </div>
         </DocumentGroupProvider>
-      </AuthProvider>
+      {/* </AuthProvider> */}
     </div>
   );
 } 
