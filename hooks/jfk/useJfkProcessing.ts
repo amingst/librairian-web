@@ -252,7 +252,8 @@ export function useJfkProcessing(
           }
           
           // Now connect to the processing endpoint through our own API proxy to avoid mixed content errors
-          const sseUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/jfk/process/status?documentId=${actualId}&collection=${isRfkDocument ? 'rfk' : 'jfk'}`;
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
+          const sseUrl = `${apiBaseUrl}/api/jfk/process/status?documentId=${actualId}&collection=${isRfkDocument ? 'rfk' : 'jfk'}`;
           console.log('Connecting to SSE endpoint:', sseUrl);
           
           const evtSource = new EventSource(sseUrl);
