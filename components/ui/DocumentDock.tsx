@@ -16,19 +16,23 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
 
-// Add a custom hook to detect client-side rendering
-function useClientSideOnly() {
+// Create a wrapper component for client-side only rendering
+export function DocumentDock() {
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
     setMounted(true);
   }, []);
   
-  return mounted;
+  if (!mounted) {
+    return null;
+  }
+  
+  return <DocumentDockContent />;
 }
 
-export function DocumentDock() {
-  const isClient = useClientSideOnly();
+// Inner component with all the actual functionality
+function DocumentDockContent() {
   const { queue, removeFromQueue, clearQueue, reorderQueue, setQueue, addToQueue } = useDocumentDock();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [documentDetails, setDocumentDetails] = useState<Record<string, any>>({});
