@@ -16,7 +16,19 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
 
+// Add a custom hook to detect client-side rendering
+function useClientSideOnly() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  return mounted;
+}
+
 export function DocumentDock() {
+  const isClient = useClientSideOnly();
   const { queue, removeFromQueue, clearQueue, reorderQueue, setQueue, addToQueue } = useDocumentDock();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [documentDetails, setDocumentDetails] = useState<Record<string, any>>({});
@@ -47,16 +59,10 @@ export function DocumentDock() {
   const [currentPlaylistItem, setCurrentPlaylistItem] = useState<number | null>(null);
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
   const [pageImageUrls, setPageImageUrls] = useState<Record<string, string>>({});
-  const [isClient, setIsClient] = useState(false);
 
-  // Set isClient to true once component mounts on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Prevent rendering the component on the server side
+  // Prevent hydration errors by rendering nothing on server
   if (!isClient) {
-    return null; // Return null during SSR
+    return null;
   }
 
   // Effect to load image URLs when document or page changes
