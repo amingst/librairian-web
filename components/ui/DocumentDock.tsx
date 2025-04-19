@@ -13,26 +13,17 @@ import { useDocumentDock, DocumentItem } from '../../lib/context/DocumentDockCon
 import { X, GripVertical, ChevronUp, ChevronDown, Mic, Radio, MessageSquare, FileText, Image, AlignLeft, Play, Pause, Loader, FileSearch, User, MapPin, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DropResult, DroppableProvided, DraggableProvided } from 'react-beautiful-dnd';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import dynamic from 'next/dynamic';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
 
-// Create a wrapper component for client-side only rendering
-export function DocumentDock() {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) {
-    return null;
-  }
-  
-  return <DocumentDockContent />;
-}
+// Use dynamic import with ssr: false to avoid hydration issues
+export const DocumentDock = dynamic(() => Promise.resolve(DocumentDockImpl), {
+  ssr: false
+});
 
-// Inner component with all the actual functionality
-function DocumentDockContent() {
+// The actual implementation
+function DocumentDockImpl() {
   const { queue, removeFromQueue, clearQueue, reorderQueue, setQueue, addToQueue } = useDocumentDock();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [documentDetails, setDocumentDetails] = useState<Record<string, any>>({});
@@ -64,11 +55,6 @@ function DocumentDockContent() {
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
   const [pageImageUrls, setPageImageUrls] = useState<Record<string, string>>({});
 
-  // Prevent hydration errors by rendering nothing on server
-  if (!isClient) {
-    return null;
-  }
-
   // Effect to load image URLs when document or page changes
   useEffect(() => {
     const loadImageUrls = async () => {
@@ -85,7 +71,7 @@ function DocumentDockContent() {
     };
     
     loadImageUrls();
-  }, [queue, currentPage, isClient]);
+  }, [queue, currentPage]);
 
   // Handle drag and drop reordering
   const onDragEnd = (result: DropResult) => {
@@ -169,7 +155,7 @@ function DocumentDockContent() {
     };
     
     fetchDocumentDetails();
-  }, [queue, documentDetails, activeTab, currentPage, isClient]);
+  }, [queue, documentDetails, activeTab, currentPage]);
 
   // Function to get full document data
   const getFullDocumentData = async (docId: string) => {
@@ -1021,7 +1007,7 @@ function DocumentDockContent() {
       // @ts-ignore - Clean up window object
       window.updateDocumentDock = undefined;
     };
-  }, [queue, addToQueue, isClient]);
+  }, [queue, addToQueue]);
 
   // Load saved playlists from localStorage
   useEffect(() => {
@@ -1031,7 +1017,7 @@ function DocumentDockContent() {
     } catch (err) {
       console.error('Error loading saved playlists:', err);
     }
-  }, [isClient]);
+  }, []);
 
   // Helper functions for document display
   const handleTabChange = (itemId: string, tab: string) => {
@@ -2192,5 +2178,3 @@ function DocumentDockContent() {
     </>
   );
 }
-
-export default DocumentDock;
