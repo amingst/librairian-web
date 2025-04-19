@@ -2,7 +2,7 @@ import React from 'react';
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { AuthProvider } from '../lib/context/AuthContext';
+// import { AuthProvider } from '../lib/context/AuthContext';
 import { DocumentDockProvider } from '../lib/context/DocumentDockContext';
 import { DocumentDock } from '../components/ui/DocumentDock';
 import Link from 'next/link';
@@ -23,14 +23,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className}`}>
-        <AuthProvider>
+        {/* <AuthProvider> */}
           <DocumentGroupProvider>
             <DocumentDockProvider>
               {children}
               <DocumentDock />
             </DocumentDockProvider>
           </DocumentGroupProvider>
-        </AuthProvider>
+        {/* </AuthProvider> */}
       </body>
     </html>
   );
