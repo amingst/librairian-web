@@ -47,6 +47,17 @@ export function DocumentDock() {
   const [currentPlaylistItem, setCurrentPlaylistItem] = useState<number | null>(null);
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
   const [pageImageUrls, setPageImageUrls] = useState<Record<string, string>>({});
+  const [isClient, setIsClient] = useState(false);
+
+  // Set isClient to true once component mounts on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Prevent rendering the component on the server side
+  if (!isClient) {
+    return null; // Return null during SSR
+  }
 
   // Effect to load image URLs when document or page changes
   useEffect(() => {
@@ -64,7 +75,7 @@ export function DocumentDock() {
     };
     
     loadImageUrls();
-  }, [queue, currentPage]);
+  }, [queue, currentPage, isClient]);
 
   // Handle drag and drop reordering
   const onDragEnd = (result: DropResult) => {
@@ -148,7 +159,7 @@ export function DocumentDock() {
     };
     
     fetchDocumentDetails();
-  }, [queue, documentDetails, activeTab, currentPage]);
+  }, [queue, documentDetails, activeTab, currentPage, isClient]);
 
   // Function to get full document data
   const getFullDocumentData = async (docId: string) => {
@@ -1000,7 +1011,7 @@ export function DocumentDock() {
       // @ts-ignore - Clean up window object
       window.updateDocumentDock = undefined;
     };
-  }, [queue, addToQueue]);
+  }, [queue, addToQueue, isClient]);
 
   // Load saved playlists from localStorage
   useEffect(() => {
@@ -1010,7 +1021,7 @@ export function DocumentDock() {
     } catch (err) {
       console.error('Error loading saved playlists:', err);
     }
-  }, []);
+  }, [isClient]);
 
   // Helper functions for document display
   const handleTabChange = (itemId: string, tab: string) => {
