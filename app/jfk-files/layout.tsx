@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Inter } from 'next/font/google';
-import { AuthProvider } from '../../lib/context/AuthContext';
+// import { AuthProvider } from '../../lib/context/AuthContext';
 import { DocumentGroupProvider, useDocumentGroups } from '../../lib/context/DocumentGroupContext';
 import GlobalDocumentGroupFilter from '../../components/layout/GlobalDocumentGroupFilter';
 import Button from '@mui/material/Button';
