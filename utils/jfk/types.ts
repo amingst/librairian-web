@@ -5,6 +5,7 @@ export interface JFKDocument {
   id: string;
   status: string; 
   processingStatus?: string | null; // Added for the new status system
+  processingStage?: string | null; // Added for displaying the current processing stage
   stages: string[];
   lastUpdated: string;
   url?: string;

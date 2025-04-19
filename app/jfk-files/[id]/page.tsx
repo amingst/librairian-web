@@ -342,8 +342,29 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
             documentObjectKeys: data.document ? Object.keys(data.document) : []
           });
           
+          // Enhanced debugging for RFK documents
+          const isRfkDocument = id.toLowerCase().includes('rfk') || 
+                              (data.documentGroup && data.documentGroup.toLowerCase() === 'rfk') || 
+                              (data.documentType && data.documentType.toLowerCase() === 'rfk');
+          
+          if (isRfkDocument) {
+            console.log("RFK Document detected, debugging entity data:", {
+              id: id,
+              // Check all possible entity locations
+              docAllNames: data.allNames,
+              docAllPlaces: data.allPlaces,
+              docAllObjects: data.allObjects,
+              nestedDocAllNames: data.document?.allNames,
+              nestedDocNames: data.document?.names,
+              nestedPlaces: data.document?.places || data.document?.allPlaces,
+              nestedObjects: data.document?.objects || data.document?.allObjects,
+              // Check if data exists in the raw document field
+              rawDocument: typeof data.document === 'string' ? "String - needs parsing" : "Object structure"
+            });
+          }
+          
           // Fix: Combine data with nested document properties to ensure allNames, allPlaces, and allObjects are available
-          const documentData = {
+          let documentData = {
             ...data,
             // If the response has a nested document object with the arrays, pull them up to the top level
             ...(data.document && {
@@ -352,6 +373,35 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
               allObjects: data.document.objects || data.document.allObjects || data.objects || data.allObjects || []
             })
           };
+          
+          // Handle case where entity data might be stored in string JSON form
+          if (typeof data.document === 'string') {
+            try {
+              const parsedDoc = JSON.parse(data.document);
+              console.log("Parsed string document data:", Object.keys(parsedDoc));
+              
+              // Merge with existing documentData
+              documentData = {
+                ...documentData,
+                allNames: documentData.allNames?.length ? documentData.allNames : (parsedDoc.names || parsedDoc.allNames || []),
+                allPlaces: documentData.allPlaces?.length ? documentData.allPlaces : (parsedDoc.places || parsedDoc.allPlaces || []),
+                allObjects: documentData.allObjects?.length ? documentData.allObjects : (parsedDoc.objects || parsedDoc.allObjects || [])
+              };
+            } catch (e) {
+              console.error("Failed to parse document JSON string:", e);
+            }
+          }
+          
+          // Final check if entity arrays exist, are valid, and initialize if needed
+          if (!Array.isArray(documentData.allNames)) documentData.allNames = [];
+          if (!Array.isArray(documentData.allPlaces)) documentData.allPlaces = [];
+          if (!Array.isArray(documentData.allObjects)) documentData.allObjects = [];
+          
+          console.log("Final prepared document data:", {
+            namesCount: documentData.allNames.length,
+            placesCount: documentData.allPlaces.length,
+            objectsCount: documentData.allObjects.length
+          });
           
           setDocument(documentData);
           setIsArchiveId(false);
@@ -369,8 +419,27 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
             const lookupData = await lookupResponse.json();
             console.log("Document found via lookup:", lookupData);
             
+            // Check if this is an RFK document
+            const isRfkLookup = id.toLowerCase().includes('rfk') || 
+                              (lookupData.documentGroup && lookupData.documentGroup.toLowerCase() === 'rfk') || 
+                              (lookupData.documentType && lookupData.documentType.toLowerCase() === 'rfk');
+            
+            if (isRfkLookup) {
+              console.log("RFK Document detected in lookup, debugging entity data:", {
+                id: id,
+                docAllNames: lookupData.allNames,
+                docAllPlaces: lookupData.allPlaces,
+                docAllObjects: lookupData.allObjects,
+                nestedDocAllNames: lookupData.document?.allNames,
+                nestedDocNames: lookupData.document?.names,
+                nestedPlaces: lookupData.document?.places || lookupData.document?.allPlaces,
+                nestedObjects: lookupData.document?.objects || lookupData.document?.allObjects,
+                rawDocument: typeof lookupData.document === 'string' ? "String - needs parsing" : "Object structure"
+              });
+            }
+            
             // Apply the same fix to extract entity data
-            const documentData = {
+            let documentData = {
               ...lookupData,
               // If the response has a nested document object with the arrays, pull them up to the top level
               ...(lookupData.document && {
@@ -379,6 +448,35 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
                 allObjects: lookupData.document.objects || lookupData.document.allObjects || lookupData.objects || lookupData.allObjects || []
               })
             };
+            
+            // Handle case where entity data might be stored in string JSON form
+            if (typeof lookupData.document === 'string') {
+              try {
+                const parsedDoc = JSON.parse(lookupData.document);
+                console.log("Parsed string document data from lookup:", Object.keys(parsedDoc));
+                
+                // Merge with existing documentData
+                documentData = {
+                  ...documentData,
+                  allNames: documentData.allNames?.length ? documentData.allNames : (parsedDoc.names || parsedDoc.allNames || []),
+                  allPlaces: documentData.allPlaces?.length ? documentData.allPlaces : (parsedDoc.places || parsedDoc.allPlaces || []),
+                  allObjects: documentData.allObjects?.length ? documentData.allObjects : (parsedDoc.objects || parsedDoc.allObjects || [])
+                };
+              } catch (e) {
+                console.error("Failed to parse document JSON string from lookup:", e);
+              }
+            }
+            
+            // Final check if entity arrays exist, are valid, and initialize if needed
+            if (!Array.isArray(documentData.allNames)) documentData.allNames = [];
+            if (!Array.isArray(documentData.allPlaces)) documentData.allPlaces = [];
+            if (!Array.isArray(documentData.allObjects)) documentData.allObjects = [];
+            
+            console.log("Final prepared lookup document data:", {
+              namesCount: documentData.allNames.length,
+              placesCount: documentData.allPlaces.length,
+              objectsCount: documentData.allObjects.length
+            });
             
             setDocument(documentData);
             
@@ -429,9 +527,20 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         // First attempt to fetch without getLatestPageData
         const cleanId = typeof effectiveId === 'string' ? effectiveId.replace(/^\/+/, '') : effectiveId;
         
+        // Determine if this is an RFK document
+        const isRfkDocument = 
+          (document?.documentGroup && document.documentGroup.toLowerCase() === 'rfk') ||
+          (document?.documentType && document.documentType.toLowerCase() === 'rfk') ||
+          (typeof cleanId === 'string' && cleanId.toLowerCase().includes('rfk'));
+        
+        // Add collection parameter for RFK documents
+        const collectionParam = isRfkDocument ? '&collection=rfk' : '';
+        
+        console.log(`Fetching page content for ${isRfkDocument ? 'RFK' : 'JFK'} document: ${cleanId}`);
+        
         const initialAnalysisUrl = useProxy 
-          ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis`)}`
-          : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis`;
+          ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`)}`
+          : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`;
         
         let response = await fetch(initialAnalysisUrl);
         
@@ -455,8 +564,8 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         if (needFullPageData) {
           console.log("Some pages missing dates array - fetching full page data...");
           const fullAnalysisUrl = useProxy 
-            ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true`)}`
-            : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true`;
+            ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true${collectionParam}`)}`
+            : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true${collectionParam}`;
           
           response = await fetch(fullAnalysisUrl);
           
@@ -539,12 +648,37 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
           const pageData = data.pages.find((p: PageContent) => p.pageNumber === currentPage);
           
           if (pageData) {
+            // Enhanced entity field extraction
+            // Some implementations might use different field names, so check multiple possibilities
+            const pageNames = pageData.names || pageData.allNames || pageData.people || [];
+            const pagePlaces = pageData.places || pageData.allPlaces || pageData.locations || [];
+            const pageDates = pageData.dates || pageData.allDates || [];
+            const pageObjects = pageData.objects || pageData.allObjects || [];
+            
+            // Ensure all arrays are valid
+            const ensureArray = (possibleArray: any): any[] => {
+              if (Array.isArray(possibleArray)) return possibleArray;
+              return [];
+            };
+            
+            // Debug log for RFK document page content
+            if (document?.documentGroup?.toLowerCase() === 'rfk' || document?.documentType?.toLowerCase() === 'rfk' || 
+                (document?.id && document.id.toString().toLowerCase().includes('rfk'))) {
+              console.log(`RFK document page ${currentPage} content debug:`, {
+                rawPageData: pageData,
+                extractedNames: pageNames,
+                extractedPlaces: pagePlaces,
+                extractedDates: pageDates,
+                extractedObjects: pageObjects
+              });
+            }
+            
             setPageContent(pageData);
             // Set current page entities for highlighting
-            setCurrentPageDates(pageData.dates || []);
-            setCurrentPageNames(pageData.names || []);
-            setCurrentPagePlaces(pageData.places || []);
-            setCurrentPageObjects(pageData.objects || []);
+            setCurrentPageDates(ensureArray(pageDates));
+            setCurrentPageNames(ensureArray(pageNames));
+            setCurrentPagePlaces(ensureArray(pagePlaces));
+            setCurrentPageObjects(ensureArray(pageObjects));
           } else {
             setPageContentError(`No content available for page ${currentPage}`);
             setPageContent(null);
@@ -587,9 +721,20 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       // Remove any leading slashes from the ID
       const cleanId = typeof effectiveId === 'string' ? effectiveId.replace(/^\/+/, '') : effectiveId;
       
+      // Determine if this is an RFK document
+      const isRfkDocument = 
+        (document?.documentGroup && document.documentGroup.toLowerCase() === 'rfk') ||
+        (document?.documentType && document.documentType.toLowerCase() === 'rfk') ||
+        (typeof cleanId === 'string' && cleanId.toLowerCase().includes('rfk'));
+      
+      // Add collection parameter for RFK documents
+      const collectionParam = isRfkDocument ? '&collection=rfk' : '';
+      
+      console.log(`Document is ${isRfkDocument ? 'an RFK' : 'a JFK'} document`);
+      
       const baseUrl = useProxy 
-        ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png`)}`
-        : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png`;
+        ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png${collectionParam}`)}`
+        : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png${collectionParam}`;
         
       const newImageSrc = baseUrl;
       setImageSrc(newImageSrc);
@@ -597,7 +742,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       console.log(`Loading image from: ${newImageSrc}`);
       
       // Test the image URL directly
-      const testUrl = useProxy ? newImageSrc : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png`;
+      const testUrl = useProxy ? newImageSrc : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${currentPage}.png${collectionParam}`;
       fetch(testUrl, { method: 'HEAD' })
         .then(response => {
           console.log(`Image HEAD request status: ${response.status}`);
@@ -622,9 +767,18 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     // Remove any leading slashes from the ID
     const cleanId = typeof effectiveId === 'string' ? effectiveId.replace(/^\/+/, '') : effectiveId;
     
+    // Determine if this is an RFK document
+    const isRfkDocument = 
+      (document?.documentGroup && document.documentGroup.toLowerCase() === 'rfk') ||
+      (document?.documentType && document.documentType.toLowerCase() === 'rfk') ||
+      (typeof cleanId === 'string' && cleanId.toLowerCase().includes('rfk'));
+    
+    // Add collection parameter for RFK documents
+    const collectionParam = isRfkDocument ? '&collection=rfk' : '';
+    
     return useProxy 
-      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis`)}`
-      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis`;
+      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`)}`
+      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`;
   };
   
   const getDocumentPdfUrl = () => {
@@ -636,9 +790,18 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     // Remove any leading slashes from the ID
     const cleanId = typeof effectiveId === 'string' ? effectiveId.replace(/^\/+/, '') : effectiveId;
     
+    // Determine if this is an RFK document
+    const isRfkDocument = 
+      (document?.documentGroup && document.documentGroup.toLowerCase() === 'rfk') ||
+      (document?.documentType && document.documentType.toLowerCase() === 'rfk') ||
+      (typeof cleanId === 'string' && cleanId.toLowerCase().includes('rfk'));
+    
+    // Add collection parameter for RFK documents
+    const collectionParam = isRfkDocument ? '&collection=rfk' : '';
+    
     return useProxy
-      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf`)}`
-      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf`;
+      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf${collectionParam}`)}`
+      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf${collectionParam}`;
   };
   
   const getPageImageUrl = (pageNum: number) => {
@@ -650,9 +813,18 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     // Remove any leading slashes from the ID
     const cleanId = typeof effectiveId === 'string' ? effectiveId.replace(/^\/+/, '') : effectiveId;
     
+    // Determine if this is an RFK document
+    const isRfkDocument = 
+      (document?.documentGroup && document.documentGroup.toLowerCase() === 'rfk') ||
+      (document?.documentType && document.documentType.toLowerCase() === 'rfk') ||
+      (typeof cleanId === 'string' && cleanId.toLowerCase().includes('rfk'));
+    
+    // Add collection parameter for RFK documents
+    const collectionParam = isRfkDocument ? '&collection=rfk' : '';
+    
     return useProxy
-      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png`)}`
-      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png`;
+      ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png${collectionParam}`)}`
+      : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png${collectionParam}`;
   };
 
   // Function to handle image load errors

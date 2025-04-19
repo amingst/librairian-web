@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/context/AuthContext';
+import GlobalDocumentGroupFilter from './GlobalDocumentGroupFilter';
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -27,6 +28,8 @@ const Header = () => {
             <span className="text-sm md:text-base tracking-widest stylized-alexandria ml-1">ΛLΞXΛNDRIΛ</span>
           </div>
         </Link>
+
+        {isAuthenticated && <GlobalDocumentGroupFilter />}
 
         <nav className="nav-links">
           {isAuthenticated ? (
@@ -61,6 +64,12 @@ const Header = () => {
 
         {mobileMenuOpen && (
           <div className={`mobile-menu bg-indigo-700 ${mobileMenuOpen ? 'open' : ''}`}>
+            {isAuthenticated && (
+              <div className="py-2 mb-2 border-b border-indigo-600">
+                <GlobalDocumentGroupFilter />
+              </div>
+            )}
+            
             {isAuthenticated ? (
               <>
                 <Link href="/capture" onClick={toggleMobileMenu} className="text-white hover:bg-indigo-600 transition-colors">Capture</Link>

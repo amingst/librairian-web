@@ -6,6 +6,7 @@ import { AuthProvider } from '../lib/context/AuthContext';
 import { DocumentDockProvider } from '../lib/context/DocumentDockContext';
 import { DocumentDock } from '../components/ui/DocumentDock';
 import Link from 'next/link';
+import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,10 +24,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className}`}>
         <AuthProvider>
-          <DocumentDockProvider>
-            {children}
-            <DocumentDock />
-          </DocumentDockProvider>
+          <DocumentGroupProvider>
+            <DocumentDockProvider>
+              {children}
+              <DocumentDock />
+            </DocumentDockProvider>
+          </DocumentGroupProvider>
         </AuthProvider>
       </body>
     </html>

@@ -46,6 +46,25 @@ export function DocumentDock() {
   }>>([]);
   const [currentPlaylistItem, setCurrentPlaylistItem] = useState<number | null>(null);
   const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
+  const [pageImageUrls, setPageImageUrls] = useState<Record<string, string>>({});
+
+  // Effect to load image URLs when document or page changes
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      for (const item of queue) {
+        const pageNum = currentPage[item.id] || 1;
+        if (!pageImageUrls[`${item.id}-${pageNum}`]) {
+          const url = await getPageImageUrl(item.id, pageNum);
+          setPageImageUrls(prev => ({
+            ...prev,
+            [`${item.id}-${pageNum}`]: url
+          }));
+        }
+      }
+    };
+    
+    loadImageUrls();
+  }, [queue, currentPage]);
 
   // Handle drag and drop reordering
   const onDragEnd = (result: DropResult) => {
@@ -73,8 +92,11 @@ export function DocumentDock() {
               // No cached data, fetch from API
               console.log(`Fetching document details for ${item.id}`);
               
+              // Check if it's an RFK document
+              const isRfkDocument = item.id.toLowerCase().includes('rfk');
+              
               // Try to fetch from the internal API first
-              const response = await fetch(`${API_BASE_URL}/api/jfk/documents/${item.id}`);
+              const response = await fetch(`${API_BASE_URL}/api/jfk/documents/${item.id}${isRfkDocument ? '?collection=rfk' : ''}`);
               
               if (response.ok) {
                 const data = await response.json();
@@ -82,13 +104,27 @@ export function DocumentDock() {
               } else {
                 // If internal API fails, try the external API
                 console.log(`Internal API failed for ${item.id}, trying external API`);
-                const externalResponse = await fetch(`${API_BASE_URL}/api/jfk/media?id=${item.id}&type=analysis&getLatestPageData=true`);
+                const externalResponse = await fetch(`${API_BASE_URL}/api/jfk/media?id=${item.id}&type=analysis&getLatestPageData=true${isRfkDocument ? '&collection=rfk' : ''}`);
                 
                 if (externalResponse.ok) {
                   const data = await externalResponse.json();
                   details[item.id] = data;
                 } else {
-                  console.error(`Failed to fetch details for document ${item.id} from both APIs`);
+                  // If it's not already identified as RFK, try again with collection=rfk
+                  if (!isRfkDocument) {
+                    console.log(`External API failed for ${item.id}, trying as RFK document`);
+                    const rfkResponse = await fetch(`${API_BASE_URL}/api/jfk/media?id=${item.id}&type=analysis&getLatestPageData=true&collection=rfk`);
+                    
+                    if (rfkResponse.ok) {
+                      const data = await rfkResponse.json();
+                      details[item.id] = data;
+                      console.log(`Successfully retrieved ${item.id} as RFK document`);
+                    } else {
+                      console.error(`Failed to fetch details for document ${item.id} from all APIs`);
+                    }
+                  } else {
+                    console.error(`Failed to fetch details for document ${item.id} from both APIs`);
+                  }
                 }
               }
             }
@@ -117,10 +153,24 @@ export function DocumentDock() {
   // Function to get full document data
   const getFullDocumentData = async (docId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=analysis&getLatestPageData=true`);
+      // Check if it's an RFK document
+      const isRfkDocument = docId.toLowerCase().includes('rfk');
+      
+      const response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=analysis&getLatestPageData=true${isRfkDocument ? '&collection=rfk' : ''}`);
       if (response.ok) {
         return await response.json();
       } else {
+        // If not already identified as RFK, try again with collection=rfk parameter
+        if (!isRfkDocument) {
+          console.log(`Failed to fetch data for ${docId}, trying as RFK document`);
+          const rfkResponse = await fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=analysis&getLatestPageData=true&collection=rfk`);
+          
+          if (rfkResponse.ok) {
+            console.log(`Successfully retrieved ${docId} as RFK document`);
+            return await rfkResponse.json();
+          }
+        }
+        
         console.error(`Failed to fetch full data for document ${docId}`);
         return null;
       }
@@ -824,30 +874,49 @@ export function DocumentDock() {
   }, []);
 
   // Update the page change handler to fetch page content
-  const handlePageChange = async (itemId: string, pageNum: number) => {
-    setCurrentPage(prev => ({ ...prev, [itemId]: pageNum }));
+  const handlePageChange = async (docId: string, pageNum: number) => {
+    setCurrentPage((prev) => ({ ...prev, [docId]: pageNum }));
     
-    // If we haven't loaded this specific page content yet, fetch it
-    const pageKey = `${itemId}-p${pageNum}`;
-    if (!pageContent[pageKey] && !pageContentLoading[pageKey]) {
-      setPageContentLoading(prev => ({ ...prev, [pageKey]: true }));
+    if (!pageContent[docId] || !pageContent[docId][pageNum]) {
+      setPageContentLoading((prev) => ({ ...prev, [docId]: true }));
       
       try {
-        const response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${itemId}&type=analysis&getLatestPageData=true`);
+        // Determine if it's an RFK document based on ID
+        const isRfkDocument = docId.toLowerCase().includes('rfk');
+        let collection = isRfkDocument ? 'rfk' : 'jfk';
+        
+        // First attempt using the determined collection
+        let response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=text&filename=page-${pageNum}.txt&collection=${collection}`);
+        
+        // If first attempt fails and it wasn't identified as RFK, try with RFK collection
+        if (!response.ok && collection === 'jfk') {
+          console.log(`Failed to fetch page ${pageNum} for document ${docId} with JFK collection, trying RFK collection`);
+          collection = 'rfk';
+          response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=text&filename=page-${pageNum}.txt&collection=${collection}`);
+        }
         
         if (response.ok) {
-          const data = await response.json();
-          if (data.pages && Array.isArray(data.pages)) {
-            const pageSummary = data.pages.find((p: any) => p.pageNumber === pageNum);
-            if (pageSummary) {
-              setPageContent(prev => ({ ...prev, [pageKey]: pageSummary }));
-            }
+          const text = await response.text();
+          setPageContent((prev) => ({
+            ...prev,
+            [docId]: {
+              ...prev[docId],
+              [pageNum]: text,
+            },
+          }));
+          
+          // Update the cached collection for this document for future requests
+          if (collection === 'rfk' && !isRfkDocument) {
+            console.log(`Document ${docId} is actually an RFK document, updating cached info`);
+            // Update any other functions that might need this information
           }
+        } else {
+          console.error(`Failed to fetch page ${pageNum} for document ${docId} from all attempted collections`);
         }
       } catch (error) {
-        console.error(`Error fetching page ${pageNum} content for document ${itemId}:`, error);
+        console.error(`Error fetching page ${pageNum} for document ${docId}:`, error);
       } finally {
-        setPageContentLoading(prev => ({ ...prev, [pageKey]: false }));
+        setPageContentLoading((prev) => ({ ...prev, [docId]: false }));
       }
     }
   };
@@ -948,8 +1017,32 @@ export function DocumentDock() {
     setActiveTab(prev => ({ ...prev, [itemId]: tab }));
   };
   
-  const getPageImageUrl = (docId: string, pageNum: number) => {
-    return `${API_BASE_URL}/api/jfk/media?id=${docId}&type=image&filename=page-${pageNum}.png`;
+  const getPageImageUrl = async (docId: string, pageNum: number) => {
+    // Determine if it's an RFK document based on ID
+    const isRfkDocument = docId.toLowerCase().includes('rfk');
+    let collection = isRfkDocument ? 'rfk' : 'jfk';
+    
+    // Create URL with the determined collection
+    let imageUrl = `${API_BASE_URL}/api/jfk/media?id=${docId}&type=image&filename=page-${pageNum}.png&collection=${collection}`;
+    
+    // Check if the image exists with this collection
+    try {
+      const response = await fetch(imageUrl, { method: 'HEAD' });
+      
+      // If first attempt fails and it wasn't identified as RFK, try with RFK collection
+      if (!response.ok && collection === 'jfk') {
+        console.log(`Failed to fetch image for page ${pageNum} of document ${docId} with JFK collection, trying RFK collection`);
+        collection = 'rfk';
+        imageUrl = `${API_BASE_URL}/api/jfk/media?id=${docId}&type=image&filename=page-${pageNum}.png&collection=${collection}`;
+        
+        // We don't need to check if this works - if both fail, we'll just return the last URL
+      }
+    } catch (error) {
+      console.error(`Error checking image availability for document ${docId}, page ${pageNum}:`, error);
+    }
+    
+    // Return the URL with the appropriate collection parameter
+    return imageUrl;
   };
 
   const toggleExpandedSection = (itemId: string, section: string) => {
@@ -1814,14 +1907,9 @@ export function DocumentDock() {
                         }}>
                           {docDetails ? (
                             <img 
-                              src={getPageImageUrl(item.id, pageNum)}
-                              alt={`Page ${pageNum}`}
-                              style={{ 
-                                maxWidth: '100%', 
-                                maxHeight: '100%', 
-                                objectFit: 'contain',
-                                display: 'block'
-                              }}
+                              className="max-w-full h-auto"
+                              alt={`Page ${pageNum} of document ${item.id}`}
+                              src={pageImageUrls[`${item.id}-${pageNum}`] || '/images/loading.gif'}
                             />
                           ) : (
                             <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Loading image...</div>

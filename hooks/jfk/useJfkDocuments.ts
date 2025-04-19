@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { JFKDocument } from '../../utils/jfk/types';
+import { useDocumentGroups } from '../../lib/context/DocumentGroupContext';
 
 interface UseJfkDocumentsReturn {
   documents: JFKDocument[];
@@ -22,14 +23,24 @@ export function useJfkDocuments(itemsPerPage: number = 10): UseJfkDocumentsRetur
   const [totalPages, setTotalPages] = useState(1);
   const [documentIdMap, setDocumentIdMap] = useState<Record<string, string>>({});
   
+  // Get current document groups from context
+  const { enabledGroups } = useDocumentGroups();
+  
   // Prevent setState during render by moving initial fetching to an effect with a ref guard
   const initialFetchRef = useRef(false);
 
   // Function to fetch documents from API
   const fetchDocuments = useCallback(async (page: number) => {
     try {
-      // Use the document-status API
-      const response = await fetch(`/api/jfk/document-status?page=${page}&size=${itemsPerPage}`);
+      // Add document group filtering to API request
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        size: itemsPerPage.toString(),
+        groups: enabledGroups.join(',')
+      });
+      
+      // Use the document-status API with filter
+      const response = await fetch(`/api/jfk/document-status?${queryParams.toString()}`);
       if (!response.ok) throw new Error(`Failed to fetch documents: ${response.statusText}`);
       
       const data = await response.json();
@@ -60,7 +71,7 @@ export function useJfkDocuments(itemsPerPage: number = 10): UseJfkDocumentsRetur
       console.error("Error fetching JFK documents:", error);
       setIsLoading(false);
     }
-  }, [itemsPerPage]);
+  }, [itemsPerPage, enabledGroups]);
 
   // Initial fetch on mount
   useEffect(() => {

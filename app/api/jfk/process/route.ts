@@ -652,7 +652,82 @@ export async function PUT(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { documentId, documentUrl, archiveId, steps = [], findBrokenOnly = false } = body;
+    const { 
+      documentId, 
+      documentUrl, 
+      archiveId, 
+      steps = [], 
+      findBrokenOnly = false,
+      documentType = 'jfk', // Default to 'jfk' if not specified
+      documentGroup = 'jfk', // Default to 'jfk' if not specified
+      processType = '', // Add processType parameter
+      forceDataUpdate = false // Add forceDataUpdate parameter
+    } = body;
+    
+    // Special case for direct finalization of a document (final step)
+    if (processType === 'finalizeDocument' || forceDataUpdate === true) {
+      const targetDocId = documentId.replace(/^\/+/, '');
+      console.log(`[FINALIZE] Force finalizing document ${targetDocId}`);
+      
+      try {
+        // Determine document type with fallbacks
+        let effectiveDocType = 'jfk';
+        if (documentType === 'rfk' || documentGroup === 'rfk' || targetDocId.toLowerCase().includes('rfk')) {
+          effectiveDocType = 'rfk';
+        }
+        
+        // Fetch complete analysis data
+        const analysisData = await fetchDocumentAnalysis(targetDocId, effectiveDocType);
+        
+        if (!analysisData) {
+          return NextResponse.json({
+            status: 'error',
+            message: 'Failed to fetch analysis data for document',
+            documentId: targetDocId
+          }, { status: 500 });
+        }
+        
+        // Make sure allNames, allPlaces, allDates, and allObjects are initialized
+        if (!analysisData.allNames) analysisData.allNames = [];
+        if (!analysisData.allPlaces) analysisData.allPlaces = [];
+        if (!analysisData.allDates) analysisData.allDates = [];
+        if (!analysisData.allObjects) analysisData.allObjects = [];
+        
+        // LOG THE DATA BEFORE SAVING
+        console.log('[DB Update] Final dbUpdateData before saving:', JSON.stringify({
+          targetDocId,
+          namesCount: analysisData.allNames.length,
+          placesCount: analysisData.allPlaces.length,
+          datesCount: analysisData.allDates.length,
+          objectsCount: analysisData.allObjects.length,
+          pageCount: analysisData.pages?.length || 0
+        }, null, 2));
+        
+        // Perform database update with isComplete=true
+        const success = await updateDocumentInDatabase(targetDocId, analysisData, true);
+        
+        if (success) {
+          return NextResponse.json({
+            status: 'success',
+            message: 'Document finalized with full data update',
+            documentId: targetDocId
+          });
+        } else {
+          return NextResponse.json({
+            status: 'error',
+            message: 'Failed to update document in database',
+            documentId: targetDocId
+          }, { status: 500 });
+        }
+      } catch (error) {
+        console.error(`[FINALIZE] Error finalizing document ${targetDocId}:`, error);
+        return NextResponse.json({
+          status: 'error',
+          message: `Error finalizing document: ${String(error)}`,
+          documentId: targetDocId
+        }, { status: 500 });
+      }
+    }
     
     // If findBrokenOnly is true, just find and return broken document IDs
     if (findBrokenOnly === true) {
@@ -760,11 +835,50 @@ export async function POST(request: Request) {
     // Clean up the document ID to ensure it's in the correct format (no leading slashes)
     const cleanDocId = documentId ? documentId.replace(/^\/+/, '') : request.headers.get('X-Document-ID') || 'unknown';
 
-    // If documentUrl is not provided, construct it using our utility function
-    // This will handle different release dates correctly
-    const fullDocumentUrl = documentUrl || getArchivesGovUrl(cleanDocId);
+    // Check if the document exists and get its type (JFK or RFK)
+    const docRecord = await prisma.document.findFirst({
+      where: {
+        OR: [
+          { id: cleanDocId },
+          { archiveId: cleanDocId }
+        ]
+      },
+      select: {
+        documentType: true,
+        documentGroup: true
+      }
+    });
     
-    console.log(`Processing document: ${cleanDocId} with URL: ${fullDocumentUrl}`);
+    // Determine document type with fallbacks
+    // 1. Use type/group from request body if provided
+    // 2. Use document group from database if available
+    // 3. Use document type from database if available
+    // 4. Infer from document ID if it contains 'rfk'
+    // 5. Default to 'jfk'
+    let effectiveDocType = 'jfk';
+    
+    // Check if explicitly provided in request
+    if (documentType === 'rfk' || documentGroup === 'rfk') {
+      effectiveDocType = 'rfk';
+    } 
+    // Check database record
+    else if (docRecord) {
+      if (docRecord.documentGroup === 'rfk') {
+        effectiveDocType = 'rfk';
+      } else if (docRecord.documentType === 'rfk') {
+        effectiveDocType = 'rfk';
+      }
+    } 
+    // Infer from document ID
+    else if (cleanDocId.toLowerCase().includes('rfk')) {
+      effectiveDocType = 'rfk';
+    }
+
+    // If documentUrl is not provided, construct it using our utility function
+    // This will handle different release dates correctly and document types
+    const fullDocumentUrl = documentUrl || getArchivesGovUrl(cleanDocId, undefined, effectiveDocType);
+    
+    console.log(`Processing document: ${cleanDocId} with URL: ${fullDocumentUrl} (Type: ${effectiveDocType})`);
     console.log(`Requested steps: ${steps.length > 0 ? steps.join(", ") : "all"}`);
 
     try {
@@ -786,6 +900,20 @@ export async function POST(request: Request) {
               { archiveId: documentArchiveId },
               { oldId: documentArchiveId }
             ]
+          },
+          select: {
+            id: true,
+            archiveId: true,
+            oldId: true,
+            document: true,
+            processingDate: true,
+            documentUrl: true,
+            summary: true,
+            allNames: true,
+            allPlaces: true,
+            allDates: true,
+            allObjects: true,
+            pages: { select: { id: true } }
           }
         });
         
@@ -794,7 +922,7 @@ export async function POST(request: Request) {
         console.log('existingDocument', existingDoc ? existingDoc.id : 'null');
         
         // Check if document exists on disk but not in our database
-        const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentArchiveId}`, {
+        const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentArchiveId}&collection=${effectiveDocType}`, {
           method: 'HEAD'
         });
         
@@ -819,7 +947,7 @@ export async function POST(request: Request) {
           console.log(`Document ${documentArchiveId} exists on disk but not in database, proceeding to publish it`);
           
           // Fetch complete analysis data with getLatestPageData=true
-          const analysisData = await fetchDocumentAnalysis(documentArchiveId);
+          const analysisData = await fetchDocumentAnalysis(documentArchiveId, effectiveDocType);
           
           // If we have analysis data, update or create in database with complete data
           if (analysisData) {
@@ -896,7 +1024,7 @@ export async function POST(request: Request) {
       if (steps.length === 1 && steps[0] === 'indexDatabase') {
         try {
           // Fetch the latest complete document analysis data with getLatestPageData=true
-          const analysisData = await fetchDocumentAnalysis(documentArchiveId);
+          const analysisData = await fetchDocumentAnalysis(documentArchiveId, effectiveDocType);
           
           if (!analysisData) {
             console.error(`No analysis data found for document ${documentArchiveId}`);
@@ -1027,19 +1155,26 @@ export async function POST(request: Request) {
   }
 }
 
-// Get endpoint to check status
+// GET endpoint to check document status
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const documentId = searchParams.get("documentId");
+  const documentId = searchParams.get("documentId") || searchParams.get("id");
   const forceDataCheck = searchParams.get("forceDataCheck") === "true";
-
+  
   if (!documentId) {
-    return NextResponse.json(
-      { error: "Document ID is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ 
+      error: "Document ID is required"
+    }, { status: 400 });
   }
-
+  
+  // Determine document type (collection) - default to 'jfk'
+  let effectiveDocType = 'jfk';
+  
+  // Check if it's an RFK document from the ID
+  if (documentId.toLowerCase().includes('rfk')) {
+    effectiveDocType = 'rfk';
+  }
+  
   try {
     // Try to get status from database first
     let dbDocument = await prisma.document.findFirst({
@@ -1059,6 +1194,9 @@ export async function GET(request: Request) {
         documentUrl: true,
         summary: true,
         allNames: true,
+        allPlaces: true,
+        allDates: true,
+        allObjects: true,
         pages: { select: { id: true } }
       }
     });
@@ -1087,15 +1225,18 @@ export async function GET(request: Request) {
                                   (completedSteps.includes('analyzeImages') && completedSteps.includes('indexDatabase'));
       
       // If document is marked as analysis complete or is waiting for final steps, check if we need to update DB
-      const needsDataUpdate = (analysisComplete || isExternallyComplete) && 
-                              (!dbDocument.summary || 
-                              !dbDocument.allNames || 
-                              dbDocument.allNames.length === 0 ||
-                              !dbDocument.pages || 
-                              dbDocument.pages.length === 0 ||
-                              !docJson.pages || 
-                              docJson.pages.length === 0 ||
-                              forceDataCheck);
+      // Ensure we update if key metadata arrays are missing, even if analysis is marked complete
+      const needsDataUpdate = (analysisComplete || isExternallyComplete || forceDataCheck) && 
+                              (
+                                !dbDocument.summary || 
+                                !dbDocument.allNames || dbDocument.allNames.length === 0 ||
+                                !dbDocument.allPlaces || dbDocument.allPlaces.length === 0 || // Check places
+                                !dbDocument.allDates || dbDocument.allDates.length === 0 ||   // Check dates
+                                !dbDocument.allObjects || // Check objects (allow empty array)
+                                !dbDocument.pages || dbDocument.pages.length === 0 ||
+                                !docJson.pages || docJson.pages.length === 0 ||
+                                forceDataCheck
+                              );
                               
       if (needsDataUpdate) {
         try {
@@ -1103,7 +1244,7 @@ export async function GET(request: Request) {
           console.log(`[Status] Document ${documentId} needs data update (isExternallyComplete=${isExternallyComplete}, analysisComplete=${analysisComplete}). Fetching from media server...`);
           
           // First try with getLatestPageData for most complete information
-          const analysisData = await fetchDocumentAnalysis(documentId);
+          const analysisData = await fetchDocumentAnalysis(documentId, effectiveDocType);
           
           if (analysisData && analysisData.pages && analysisData.pages.length > 0) {
             console.log(`[Status] Got complete data with ${analysisData.pages.length} pages for ${documentId}`);
@@ -1126,6 +1267,9 @@ export async function GET(request: Request) {
                   documentUrl: true,
                   summary: true,
                   allNames: true,
+                  allPlaces: true,
+                  allDates: true,
+                  allObjects: true,
                   pages: { select: { id: true } }
                 }
               });
@@ -1172,7 +1316,7 @@ export async function GET(request: Request) {
       console.log(`[Status] Document ${documentId} not found in database, checking media server...`);
       
       // Check if document exists in media server
-      const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentId}`, {
+      const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentId}&collection=${effectiveDocType}`, {
         method: 'HEAD'
       });
       
@@ -1198,7 +1342,7 @@ export async function GET(request: Request) {
           
           try {
             // Fetch complete data
-            const analysisData = await fetchDocumentAnalysis(documentId);
+            const analysisData = await fetchDocumentAnalysis(documentId, effectiveDocType);
             
             if (analysisData && analysisData.pages && analysisData.pages.length > 0) {
               console.log(`[Status] Retrieved complete data from media server for ${documentId}. Saving to database...`);
@@ -1225,7 +1369,11 @@ export async function GET(request: Request) {
                     document: true,
                     processingDate: true,
                     documentUrl: true,
-                    summary: true
+                    summary: true,
+                    allNames: true,
+                    allPlaces: true,
+                    allDates: true,
+                    allObjects: true,
                   }
                 });
                 
@@ -1270,6 +1418,14 @@ export async function GET(request: Request) {
 export async function HEAD(request: Request) {
   const { searchParams } = new URL(request.url);
   const documentId = searchParams.get("documentId") || searchParams.get("id");
+  
+  // Determine document type (collection) - default to 'jfk'
+  let effectiveDocType = 'jfk';
+  
+  // Check if it's an RFK document from the ID
+  if (documentId && documentId.toLowerCase().includes('rfk')) {
+    effectiveDocType = 'rfk';
+  }
 
   if (!documentId) {
     return new Response(null, { 
@@ -1282,7 +1438,7 @@ export async function HEAD(request: Request) {
 
   try {
     // Check media server for document status
-    const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentId}`, {
+    const mediaResponse = await fetch(`${API_BASE_URL}/api/jfk/media/status?id=${documentId}&collection=${effectiveDocType}`, {
       method: 'HEAD'
     });
     
@@ -1552,12 +1708,12 @@ function normalizeDates(dateStrings: string[] = []): {
   }
 }
 
-async function fetchDocumentAnalysis(documentId: string) {
+async function fetchDocumentAnalysis(documentId: string, documentType: string = 'jfk') {
   try {
     // Ensure documentId format is consistent (no double slashes)
     const cleanId = documentId.replace(/^\/+/, '');
     // Use the correct URL format with getLatestPageData=true to ensure we get all fields
-    const mediaApiUrl = `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true`;
+    const mediaApiUrl = `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis&getLatestPageData=true&collection=${documentType}`;
     console.log(`Fetching document analysis from ${mediaApiUrl}`);
 
     const response = await fetch(mediaApiUrl, { 
@@ -1581,6 +1737,7 @@ async function fetchDocumentAnalysis(documentId: string) {
 
 // Enhance the updateDocumentInDatabase function with better error handling
 async function updateDocumentInDatabase(documentId: string, analysisData: any, isComplete: boolean = false) {
+  console.log(`[updateDocumentInDatabase] Updating document ${documentId} with ${isComplete ? 'complete' : 'partial'} data`);
   try {
     if (!analysisData) {
       console.error("[DB Update] No analysis data provided for database update");
@@ -1736,6 +1893,9 @@ async function updateDocumentInDatabase(documentId: string, analysisData: any, i
       }
 
       try {
+        // --> ADD LOGGING HERE <--
+        console.log('[DB Update] Final dbUpdateData before saving:', JSON.stringify(dbUpdateData, null, 2));
+        
         if (existingDoc) {
           // Update existing document
           await prisma.document.update({
@@ -1772,34 +1932,32 @@ async function updateDocumentInDatabase(documentId: string, analysisData: any, i
 // Add a direct update function we can call for testing
 export async function forceDocumentUpdate(documentId: string): Promise<boolean> {
   try {
-    console.log(`[Force Update] Forcing update for document ${documentId}`);
+    console.log(`[forceDocumentUpdate] Forcing update for document ${documentId}`);
     
-    // Fetch the latest data with getLatestPageData=true
-    const mediaApiUrl = `${API_BASE_URL}/api/jfk/media?id=${documentId.replace(/^\/+/, '')}&type=analysis&getLatestPageData=true`;
-    console.log(`[Force Update] Fetching data from: ${mediaApiUrl}`);
+    // Determine document type from ID
+    const isRfkDocument = documentId.toLowerCase().includes('rfk');
+    const docType = isRfkDocument ? 'rfk' : 'jfk';
     
-    const mediaResponse = await fetch(mediaApiUrl);
+    // First try with getLatestPageData for most complete information
+    const analysisData = await fetchDocumentAnalysis(documentId, docType);
     
-    if (!mediaResponse.ok) {
-      console.error(`[Force Update] Failed to fetch data: ${mediaResponse.status} ${mediaResponse.statusText}`);
-      return false;
-    }
-    
-    const analysisData = await mediaResponse.json();
-    console.log(`[Force Update] Got data with ${analysisData.pages?.length || 0} pages`);
-    
-    // Update the database
-    const success = await updateDocumentInDatabase(documentId, analysisData, true);
-    
-    if (success) {
-      console.log(`[Force Update] Successfully updated document ${documentId}`);
-      return true;
+    if (analysisData && analysisData.pages && analysisData.pages.length > 0) {
+      // Update the database
+      const success = await updateDocumentInDatabase(documentId, analysisData, true);
+      
+      if (success) {
+        console.log(`[forceDocumentUpdate] Successfully updated document ${documentId}`);
+        return true;
+      } else {
+        console.error(`[forceDocumentUpdate] Failed to update document ${documentId}`);
+        return false;
+      }
     } else {
-      console.error(`[Force Update] Failed to update document ${documentId}`);
+      console.error(`[forceDocumentUpdate] Failed to get complete data for ${documentId} - analysis data not available`);
       return false;
     }
   } catch (error) {
-    console.error(`[Force Update] Error updating document ${documentId}:`, error);
+    console.error(`[forceDocumentUpdate] Error updating document ${documentId}:`, error);
     return false;
   }
 } 

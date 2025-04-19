@@ -84,12 +84,14 @@ async function fetchAllArchiveDocuments() {
         const releaseDate = extractReleaseDate(relativeUrl);
         
         return {
-          id: id, // Remove .pdf extension from the ID
-          archiveId: id, // Use consistent ID without extension
+          id: id,
+          archiveId: id,
           title: `JFK Document ${id}`,
           pageCount: 0, // Will be determined during processing
           fullUrl: fullUrl,
-          releaseDate: releaseDate.toISOString()
+          releaseDate: releaseDate.toISOString(),
+          documentType: 'jfk', // For backward compatibility
+          documentGroup: 'jfk' // Use new consistent terminology
         };
       }).filter(Boolean); // Remove any null items
       
@@ -128,7 +130,9 @@ async function fetchAllArchiveDocuments() {
         title: `JFK Document ${id}`,
         pageCount: 0,
         fullUrl: fullUrl,
-        releaseDate: releaseDate.toISOString()
+        releaseDate: releaseDate.toISOString(),
+        documentType: 'jfk', // For backward compatibility
+        documentGroup: 'jfk' // Use new consistent terminology
       };
     });
   }
@@ -184,18 +188,22 @@ export async function POST() {
           data: batch
             .filter((doc): doc is NonNullable<typeof doc> => doc !== null) // Type guard
             .map(doc => ({
-              id: doc.id, // ID is already without extension from steps above
-              archiveId: doc.archiveId, // ArchiveID is already without extension
+              id: doc.id,
+              archiveId: doc.archiveId,
               title: doc.title,
               pageCount: doc.pageCount,
+              documentType: 'jfk', // For backward compatibility
+              documentGroup: 'jfk', // Use new consistent terminology
               document: JSON.stringify({
-                id: doc.id, // Use ID without extension
+                id: doc.id,
                 title: doc.title,
                 pageCount: doc.pageCount,
                 processingStage: 'waitingForProcessing',
                 processingSteps: [],
                 analysisComplete: false,
-                releaseDate: doc.releaseDate
+                releaseDate: doc.releaseDate,
+                documentType: 'jfk', // For backward compatibility
+                documentGroup: 'jfk' // Use new consistent terminology
               }),
               processingDate: new Date(),
               lastProcessed: new Date()

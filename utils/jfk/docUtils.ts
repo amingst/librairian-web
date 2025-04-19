@@ -34,7 +34,17 @@ export const getDocumentPdfUrl = (frontendId: string, documentIdMap: Record<stri
 };
 
 // Get the archives.gov source URL for a document
-export const getArchivesGovUrl = (documentId: string, releaseDate?: string): string => {
+export const getArchivesGovUrl = (documentId: string, releaseDate?: string, documentType: string = 'jfk'): string => {
+  // Check if this is an RFK document by either explicit type or ID
+  const isRfk = documentType === 'rfk' || documentId.toLowerCase().includes('rfk');
+  
+  if (isRfk) {
+    // RFK documents use a different URL pattern with 2025/0418 release path
+    const rfkReleasePath = '2025/0418';
+    return `https://www.archives.gov/files/research/rfk/releases/${rfkReleasePath}/${documentId}.pdf`;
+  }
+  
+  // For JFK documents, use the existing logic
   // Default release path for March 18, 2025
   let releasePath = '0318';
   

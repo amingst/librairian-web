@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from "next/image";
@@ -34,6 +34,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import PopulateArchivesButton from '../components/PopulateArchivesButton';
+import PopulateRfkArchivesButton from '../components/PopulateRfkArchivesButton';
 import CleanupDocumentsButton from '../components/CleanupDocumentsButton';
 import { AddToDocumentDock } from '../../components/ui/AddToDocumentDock';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -41,6 +42,17 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ImageIcon from '@mui/icons-material/Image';
 import StopIcon from '@mui/icons-material/Stop';
 import SettingsIcon from '@mui/icons-material/Settings';
+import GroupIcon from '@mui/icons-material/Group';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import SaveIcon from '@mui/icons-material/Save';
+import NoteAddIcon from '@mui/icons-material/NoteAdd';
+import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
+// import { AddDocumentsToDockDialog } from './AddDocumentsToDockDialog';
+// import { formatDate, truncateText } from '@/lib/utils';
+// import { DocumentStatusDisplay } from "@/components/DocumentStatusDisplay";
+// import AddToDocumentDock from '@/components/AddToDocumentDock';
 
 // Import our custom hooks
 import { useJfkDocuments } from '../../hooks/jfk/useJfkDocuments';
@@ -59,6 +71,9 @@ import {
 import { getLatestStage, getStepStatus } from '../../utils/jfk/statusUtils';
 import { JFKDocument, ProcessingUpdate } from '../../utils/jfk/types';
 
+// Import the document group context
+import { useDocumentGroups } from '../../lib/context/DocumentGroupContext';
+
 export default function JFKFilesPage() {
   // Use our custom hooks
   const {
@@ -73,6 +88,43 @@ export default function JFKFilesPage() {
     goToPrevPage,
     refreshDocuments
   } = useJfkDocuments();
+  
+  // Use document groups context to filter documents 
+  const { enabledGroups, addDocumentGroup } = useDocumentGroups();
+
+  // Apply document group filtering with better group/type mapping
+  const filteredDocuments = documents.filter(doc => {
+    // Check for documentGroup property (in the database) first
+    const docWithType = doc as JFKDocument & { 
+      documentType?: string,
+      documentGroup?: string
+    };
+    
+    // Default document group logic:
+    // 1. Use explicit documentGroup if set
+    // 2. Use documentType as fallback (for backward compatibility)
+    // 3. Infer from document ID if possible (RFK documents often have 'RFK' in their ID)
+    // 4. Default to 'jfk' as final fallback
+    let docGroup = 'jfk';
+    
+    if (docWithType.documentGroup) {
+      // Use the explicitly set document group
+      docGroup = docWithType.documentGroup.toLowerCase();
+    } else if (docWithType.documentType) {
+      // Use documentType as fallback (for backward compatibility)
+      docGroup = docWithType.documentType.toLowerCase();
+    } else if (doc.id && typeof doc.id === 'string' && doc.id.toUpperCase().includes('RFK')) {
+      // Infer RFK from document ID if it contains 'RFK'
+      docGroup = 'rfk';
+    }
+    
+    // Log documents for debugging
+    if (docGroup === 'rfk') {
+      console.log('Found RFK document:', doc.id, docGroup);
+    }
+    
+    return enabledGroups.includes(docGroup);
+  });
   
   const [repairingDocuments, setRepairingDocuments] = useState(false);
   const [repairedCount, setRepairedCount] = useState(0);
@@ -91,6 +143,28 @@ export default function JFKFilesPage() {
   // Derived state for compatibility with existing code
   const limitToImageAnalysis = processingMode === 'images-only';
 
+  // Calculate pagination values for filtered documents
+  const itemsPerPage = 10;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredDocuments.length);
+  const filteredTotalPages = Math.max(1, Math.ceil(filteredDocuments.length / itemsPerPage));
+
+  // When showing filtered results, adjust pagination text/controls
+  const showFilteredPagination = filteredDocuments.length !== documents.length;
+  const effectiveTotalPages = showFilteredPagination ? filteredTotalPages : totalPages;
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [enabledGroups, setCurrentPage]); 
+
+  // Make sure currentPage is valid for filtered documents
+  useEffect(() => {
+    if (currentPage > effectiveTotalPages && effectiveTotalPages > 0 && filteredDocuments.length > 0) {
+      setCurrentPage(effectiveTotalPages);
+    }
+  }, [totalPages, effectiveTotalPages, currentPage, setCurrentPage, filteredDocuments.length]);
+
   const {
     processingUpdates,
     isProcessingAll,
@@ -104,7 +178,8 @@ export default function JFKFilesPage() {
     processDocument,
     processAllDocuments,
     repairDocument,
-    repairAllBrokenDocuments
+    repairAllBrokenDocuments,
+    stopProcessing
   } = useJfkProcessing(
     documents, 
     documentIdMap, 
@@ -166,17 +241,97 @@ export default function JFKFilesPage() {
       setConfirmationMessage(`Are you sure you want to process document ${documentId}?`);
       setConfirmationAction(() => async () => {
         try {
-          // Instead of passing an options object, we'll need to call the function directly
-          // The hook doesn't support options, but it uses limitToImageAnalysis internally
+          // First run the normal processing
           await processDocument(documentId);
-        } catch (err) {
+          
+          // Determine if it's an RFK document
+          const isRfkDocument = documentId.toLowerCase().includes('rfk') || 
+                             documents.some(doc => {
+                              const docWithType = doc as JFKDocument & { documentType?: string, documentGroup?: string };
+                              return doc.id === documentId && 
+                                (docWithType.documentGroup === 'rfk' || docWithType.documentType === 'rfk');
+                             });
+          
+          // Then immediately call the finalize endpoint to ensure data is in the database
+          const finalizeResponse = await fetch('/api/jfk/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              documentId: documentId,
+              processType: 'finalizeDocument',
+              documentType: isRfkDocument ? 'rfk' : 'jfk',
+              documentGroup: isRfkDocument ? 'rfk' : 'jfk',
+              forceDataUpdate: true // Force a complete data update
+            })
+          });
+          
+          if (finalizeResponse.ok) {
+            console.log(`Document ${documentId} successfully finalized (type: ${isRfkDocument ? 'rfk' : 'jfk'})`);
+            
+            // Wait a brief moment to ensure database updates are complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Force refresh the documents to show the new data
+            await refreshDocuments();
+            
+            // Add toast notification to inform user
+            console.log("Document processing complete - data should now be visible in the UI");
+          } else {
+            const errorText = await finalizeResponse.text();
+            console.error('Failed to finalize document:', errorText);
+          }
+        } catch (err: unknown) {
           console.error('Error processing document:', err);
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error preparing to process document:', error);
     }
   };
+
+  const [isMigratingGroups, setIsMigratingGroups] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState('');
+
+  // Function to run document group migration
+  const runDocumentGroupMigration = async () => {
+    try {
+      setIsMigratingGroups(true);
+      setMigrationStatus('Migration in progress...');
+      
+      const response = await fetch('/api/documents/migrate-groups', {
+        method: 'POST',
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMigrationStatus(`Success: ${result.message}`);
+        refreshDocuments();
+      } else {
+        setMigrationStatus(`Error: ${result.message}`);
+      }
+    } catch (error: unknown) {
+      console.error('Error running document group migration:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setMigrationStatus(`Error: ${errorMessage}`);
+    } finally {
+      setIsMigratingGroups(false);
+    }
+  };
+
+  // Add a function to reset document filters
+  const resetDocumentFilters = useCallback(() => {
+    // Ensure both JFK and RFK are added to available groups
+    addDocumentGroup('jfk');
+    addDocumentGroup('rfk');
+    
+    // Force reset localStorage directly
+    localStorage.setItem('enabledDocumentGroups', JSON.stringify(['jfk', 'rfk']));
+    localStorage.setItem('availableDocumentGroups', JSON.stringify(['jfk', 'rfk']));
+    
+    // Reload the page to apply changes
+    window.location.reload();
+  }, [addDocumentGroup]);
 
   if (isLoading) {
     return (
@@ -214,7 +369,7 @@ export default function JFKFilesPage() {
         marginBottom: '1.5rem',
         color: '#1e3a8a' 
       }}>
-        JFK Records Collection
+        Populate & Process Documents
       </h1>
       
       <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -265,8 +420,75 @@ export default function JFKFilesPage() {
           Refresh Documents
         </Button>
 
-        <PopulateArchivesButton />
-        <CleanupDocumentsButton />
+        <Button
+          variant="contained"
+          color="primary"
+          component={Link}
+          href="/jfk-files/visualizations"
+          style={{ marginRight: '0.5rem', background: '#3b82f6' }}
+          startIcon={<VisibilityIcon />}
+        >
+          Visualize
+        </Button>
+        
+        <Button
+          variant="contained"
+          color="primary"
+          component={PopulateArchivesButton}
+          style={{ marginRight: '0.5rem', background: '#1e3a8a' }}
+        >
+          Populate from JFK Assassination Records at NARA
+        </Button>
+        
+        <Button
+          variant="contained"
+          color="secondary"
+          component={PopulateRfkArchivesButton}
+          style={{ marginRight: '0.5rem', background: '#9c27b0' }}
+        >
+          Populate from RFK Assassination Records at NARA
+        </Button>
+        
+        <Button
+          variant="outlined"
+          color="error"
+          component={CleanupDocumentsButton}
+          style={{ marginRight: '0.5rem', borderColor: '#ef4444', color: '#ef4444' }}
+        >
+          Delete Documents with .pdf IDs
+        </Button>
+        
+        <Button
+          variant="outlined"
+          color="info"
+          onClick={() => {
+            setConfirmDialogOpen(true);
+            setConfirmationTitle("Add Document Group Field");
+            setConfirmationMessage("This will migrate existing documents to use the documentGroup field. Use this if you have existing documents that don't have this field. Continue?");
+            setConfirmationAction(() => runDocumentGroupMigration);
+          }}
+          disabled={isMigratingGroups}
+          style={{ marginRight: '0.5rem', borderColor: '#0288d1', color: '#0288d1' }}
+          startIcon={<GroupIcon />}
+        >
+          Add Document Group Field To Existing Records
+        </Button>
+        
+        <Button
+          variant="outlined" 
+          color="warning"
+          onClick={resetDocumentFilters}
+          style={{ marginRight: '0.5rem', borderColor: '#ed6c02', color: '#ed6c02' }}
+          startIcon={<RestartAltIcon />}
+        >
+          Reset Document Filters
+        </Button>
+        
+        {migrationStatus && (
+          <Typography variant="body2" color="info" style={{ marginLeft: '0.5rem' }}>
+            {migrationStatus}
+          </Typography>
+        )}
         
         <div style={{ flexGrow: 1 }}></div>
         
@@ -333,57 +555,23 @@ export default function JFKFilesPage() {
               <Typography variant="body2">
                 {processedCount} / {totalToProcess > 0 ? totalToProcess : '?'} documents processed
               </Typography>
-        </div>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<StopCircleIcon />}
+                onClick={() => {
+                  setConfirmDialogOpen(true);
+                  setConfirmationTitle("Stop Processing");
+                  setConfirmationMessage("Are you sure you want to stop all document processing? This will abort any active processing jobs.");
+                  setConfirmationAction(() => stopProcessing);
+                }}
+                style={{ marginLeft: 'auto' }}
+              >
+                Stop Processing
+              </Button>
+            </div>
           </Paper>
       </div>
-      )}
-      
-      {/* Processing progress bars if we have active documents */}
-      {Object.keys(processingUpdates).length > 0 && (
-        <div style={{ marginBottom: '1rem' }}>
-          <Paper style={{ padding: '1rem', background: '#f3f4f6' }}>
-            <Typography variant="subtitle1" style={{ marginBottom: '0.5rem', fontWeight: 500 }}>
-              Document Processing Status
-            </Typography>
-            
-            {Object.entries(processingUpdates).map(([docId, update]) => (
-              <div key={docId} style={{ 
-                marginBottom: '1rem', 
-                padding: '0.75rem',
-                borderRadius: '0.375rem',
-                background: '#ffffff', 
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <Typography variant="subtitle2" style={{ fontWeight: 500 }}>
-                    Document {docId}
-                  </Typography>
-                  <Chip 
-                    label={update.status} 
-                    size="small" 
-                    color={update.type === 'error' ? 'error' : update.type === 'complete' ? 'success' : 'primary'} 
-                    variant="outlined"
-                  />
-          </div>
-                <Typography variant="body2" color="textSecondary" style={{ marginBottom: '0.5rem' }}>
-                  {update.message}
-                </Typography>
-                {update.type === 'processing' && update.progress !== undefined && (
-                  <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div 
-              style={{
-                        height: '100%', 
-                        width: `${update.progress}%`, 
-                        background: '#3b82f6',
-                        transition: 'width 0.3s ease'
-                      }} 
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </Paper>
-            </div>
       )}
       
       <TableContainer component={Paper} style={{ marginBottom: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
@@ -391,6 +579,7 @@ export default function JFKFilesPage() {
           <TableHead style={{ background: '#f3f4f6' }}>
               <TableRow>
               <TableCell style={{ fontWeight: 600 }}>Document ID</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>Type</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Status</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Page Count</TableCell>
               <TableCell style={{ fontWeight: 600 }}>People</TableCell>
@@ -399,13 +588,13 @@ export default function JFKFilesPage() {
               <TableCell style={{ fontWeight: 600 }}>Objects</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Last Updated</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Title/Source</TableCell>
+              <TableCell style={{ fontWeight: 600 }}>View</TableCell>
               <TableCell style={{ fontWeight: 600 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-            {documents.map((doc) => {
+            {filteredDocuments.map((doc) => {
               // Extract or create empty analytics object if it doesn't exist
-              // Use type assertion to tell TypeScript about analytics property
               const docWithAnalytics = doc as JFKDocument & { 
                 analytics?: { 
                   peopleCount: number; 
@@ -413,9 +602,18 @@ export default function JFKFilesPage() {
                   datesCount: number; 
                   objectsCount: number; 
                   inQueue: boolean;
-                } 
+                },
+                documentType?: string,
+                documentGroup?: string
               };
               
+              // Use direct document arrays instead of analytics object
+              const peopleCount = Array.isArray(doc.allNames) ? doc.allNames.length : 0;
+              const placesCount = Array.isArray(doc.allPlaces) ? doc.allPlaces.length : 0;
+              const datesCount = Array.isArray(doc.allDates) ? doc.allDates.length : 0;
+              const objectsCount = Array.isArray(doc.allObjects) ? doc.allObjects.length : 0;
+              
+              // Keep the analytics object for backward compatibility with inQueue
               const analytics = docWithAnalytics.analytics || {
                 peopleCount: 0,
                 placesCount: 0,
@@ -424,6 +622,22 @@ export default function JFKFilesPage() {
                 inQueue: false
               };
               
+              // Determine if it's a JFK or RFK document with better fallback
+              let documentGroup = 'JFK';
+              if (docWithAnalytics.documentGroup) {
+                documentGroup = docWithAnalytics.documentGroup.toUpperCase();
+              } else if (docWithAnalytics.documentType) {
+                documentGroup = docWithAnalytics.documentType.toUpperCase();
+              } else if (doc.id && typeof doc.id === 'string' && doc.id.toUpperCase().includes('RFK')) {
+                documentGroup = 'RFK';
+              }
+
+              // Generate appropriate document title based on type
+              const documentTitle = documentGroup === 'RFK' ? `RFK Document ${doc.id}` : `JFK Document ${doc.id}`;
+
+              // Check if we have a processing update for this document
+              const processingUpdate = processingUpdates[doc.id];
+                
               return (
               <TableRow key={doc.id}>
                   <TableCell>
@@ -442,51 +656,113 @@ export default function JFKFilesPage() {
                   </div>
                   </TableCell>
                   <TableCell>
-                        <Chip 
-                    label={getLatestStage(doc.stages, doc)} 
-                          size="small"
-                    color={
-                      doc.processingStatus === 'failed' ? 'error' :
-                      doc.processingStatus === 'processing' ? 'warning' :
-                      doc.status === 'ready' ? 'success' :
-                      'default'
-                    }
-                    variant={doc.processingStatus === 'processing' ? 'outlined' : 'filled'}
-                  />
-                  {doc.processingProgress !== undefined && doc.processingProgress > 0 && (
-                    <div style={{ 
-                      width: '100%', 
-                      height: '3px', 
-                      background: '#e5e7eb', 
-                      borderRadius: '1.5px',
-                      marginTop: '4px',
-                      overflow: 'hidden'
-                    }}>
-                      <div 
-                        style={{ 
-                          height: '100%', 
-                          width: `${doc.processingProgress}%`, 
-                          background: '#3b82f6',
-                          transition: 'width 0.3s ease'
-                        }} 
+                    <Chip 
+                      label={documentGroup}
+                      size="small"
+                      color={documentGroup === 'RFK' ? 'secondary' : 'primary'}
+                      style={{ 
+                        fontWeight: 500,
+                        backgroundColor: documentGroup === 'RFK' ? '#9c27b0' : '#2196f3',
+                        color: 'white'
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {processingUpdate ? (
+                      <div>
+                        <Tooltip title={processingUpdate.message || ''}>
+                          <Chip 
+                            label={processingUpdate.status} 
+                            size="small" 
+                            color={
+                              processingUpdate.type === 'error' ? 'error' : 
+                              processingUpdate.type === 'complete' ? 'success' : 
+                              'primary'
+                            } 
+                            variant="outlined"
+                            style={{ marginBottom: '4px' }}
+                          />
+                        </Tooltip>
+                        
+                        {processingUpdate.type === 'processing' && processingUpdate.progress !== undefined && (
+                          <div style={{ 
+                            width: '100%', 
+                            height: '3px', 
+                            background: '#e5e7eb', 
+                            borderRadius: '1.5px',
+                            marginTop: '4px',
+                            overflow: 'hidden'
+                          }}>
+                            <div 
+                              style={{ 
+                                height: '100%', 
+                                width: `${processingUpdate.progress}%`, 
+                                background: '#3b82f6',
+                                transition: 'width 0.3s ease'
+                              }} 
+                            />
+                          </div>
+                        )}
+                        <Typography variant="caption" style={{ display: 'block', color: '#6b7280', marginTop: '2px' }}>
+                          {processingUpdate.message}
+                        </Typography>
+                      </div>
+                    ) : (
+                      <Chip 
+                        label={doc.processingStage || getLatestStage(doc.stages, doc)} 
+                        size="small"
+                        color={
+                          doc.processingStatus === 'failed' ? 'error' :
+                          doc.processingStatus === 'processing' ? 'warning' :
+                          doc.status === 'ready' ? 'success' :
+                          'default'
+                        }
+                        variant={doc.processingStatus === 'processing' ? 'outlined' : 'filled'}
                       />
-                    </div>
-                  )}
+                    )}
+                    
+                    {!processingUpdate && doc.processingProgress !== undefined && doc.processingProgress > 0 && (
+                      <div style={{ 
+                        width: '100%', 
+                        height: '3px', 
+                        background: '#e5e7eb', 
+                        borderRadius: '1.5px',
+                        marginTop: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div 
+                          style={{ 
+                            height: '100%', 
+                            width: `${doc.processingProgress}%`, 
+                            background: '#3b82f6',
+                            transition: 'width 0.3s ease'
+                          }} 
+                        />
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {doc.pageCount && doc.pageCount > 0 ? `${doc.pageCount} pages` : '-'}
+                    {doc.pageCount}
                   </TableCell>
                   <TableCell>
-                    {analytics.peopleCount > 0 ? `${analytics.peopleCount} people` : '-'}
+                    {doc.allNames && doc.allNames.length > 0
+                      ? doc.allNames.join(', ')
+                      : 'None'}
                   </TableCell>
                   <TableCell>
-                    {analytics.placesCount > 0 ? `${analytics.placesCount} places` : '-'}
+                    {doc.allPlaces && doc.allPlaces.length > 0
+                      ? doc.allPlaces.join(', ')
+                      : 'None'}
                   </TableCell>
                   <TableCell>
-                    {analytics.datesCount > 0 ? `${analytics.datesCount} dates` : '-'}
+                    {doc.allDates && doc.allDates.length > 0
+                      ? doc.allDates.join(', ')
+                      : 'None'}
                   </TableCell>
                   <TableCell>
-                    {analytics.objectsCount > 0 ? `${analytics.objectsCount} objects` : '-'}
+                    {doc.allObjects && doc.allObjects.length > 0
+                      ? doc.allObjects.join(', ')
+                      : 'None'}
                   </TableCell>
                   <TableCell>
                   {formatDate(doc.lastUpdated)}
@@ -502,6 +778,15 @@ export default function JFKFilesPage() {
                       View on Archives.gov
                     </Link>
                   )}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/jfk-files/${doc.id}`}
+                      style={{ color: '#1e3a8a', textDecoration: 'underline', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <VisibilityIcon fontSize="small" />
+                      View Document
+                    </Link>
                   </TableCell>
                   <TableCell>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -521,15 +806,31 @@ export default function JFKFilesPage() {
                     {doc.analysisComplete ? (
                       <>
                         <Tooltip title="View document">
-                          <span className="flex items-center">
-                            <VisibilityIcon fontSize="small" style={{ marginRight: '4px' }} />
-                            {analytics.inQueue && <span style={{ fontSize: '0.7rem' }}>In Queue</span>}
-                          </span>
+                          <IconButton
+                            size="small"
+                            component={Link}
+                            href={getDocumentAppUrl(doc.id)}
+                            style={{ color: '#1e3a8a' }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
                         </Tooltip>
-                        {!analytics.inQueue && (
-                          <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>
-                            +Add To Queue
-                          </span>
+                        {analytics.inQueue ? (
+                          <Chip 
+                            label="In Queue"
+                            size="small"
+                            color="secondary"
+                            style={{ fontSize: '0.7rem' }}
+                          />
+                        ) : (
+                          <AddToDocumentDock 
+                            item={{
+                              id: doc.dbId || doc.id,
+                              title: `${documentGroup} Document ${doc.id}`,
+                              url: getDocumentAppUrl(doc.id) || '',
+                              type: 'document'
+                            }}
+                          />
                         )}
                       </>
                     ) : doc.processingStatus === 'processing' ? (
@@ -561,7 +862,7 @@ export default function JFKFilesPage() {
                       <AddToDocumentDock 
                         item={{
                           id: doc.dbId,
-                          title: `JFK Document ${doc.id}`,
+                          title: `${documentGroup} Document ${doc.id}`,
                           url: getDocumentAppUrl(doc.id) || '',
                           type: 'document'
                         }}
@@ -583,94 +884,181 @@ export default function JFKFilesPage() {
         marginBottom: '0.5rem'
       }}>
         <Typography variant="body2" color="textSecondary">
-          Showing {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalDocuments)} of {totalDocuments} documents
+          {totalDocuments === 0 ? (
+            `No documents found`
+          ) : (
+            (() => {
+              const start = (currentPage - 1) * itemsPerPage + 1;
+              const end = Math.min(currentPage * itemsPerPage, totalDocuments);
+              return `Showing ${start}-${end} of ${totalDocuments} documents`;
+            })()
+          )}
         </Typography>
       </div>
       
+      {/* Add debug information about current document filters */}
+      <div style={{ 
+        padding: '10px',
+        marginBottom: '1rem',
+        backgroundColor: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.375rem'
+      }}>
+        <Typography variant="subtitle2" gutterBottom>Filter Debug Information</Typography>
+        <Typography variant="body2">
+          Enabled Groups: <code>{JSON.stringify(enabledGroups)}</code>
+        </Typography>
+        <Typography variant="body2">
+          Document Types Found: <code>
+            {JSON.stringify(Array.from(new Set(documents.map(doc => {
+              const docWithType = doc as JFKDocument & { documentType?: string, documentGroup?: string };
+              const groupValue = docWithType.documentGroup || docWithType.documentType || 
+                (doc.id && typeof doc.id === 'string' && doc.id.toUpperCase().includes('RFK') ? 'rfk' : 'jfk');
+              return groupValue;
+            }))))}
+          </code>
+        </Typography>
+        <Typography variant="body2">
+          Total JFK Documents: <code>
+            {documents.filter(doc => {
+              const docWithType = doc as JFKDocument & { documentType?: string, documentGroup?: string };
+              if (docWithType.documentGroup) return docWithType.documentGroup.toLowerCase() === 'jfk';
+              if (docWithType.documentType) return docWithType.documentType.toLowerCase() === 'jfk';
+              return !(doc.id && typeof doc.id === 'string' && doc.id.toUpperCase().includes('RFK'));
+            }).length}
+          </code>
+        </Typography>
+        <Typography variant="body2">
+          Total RFK Documents: <code>
+            {documents.filter(doc => {
+              const docWithType = doc as JFKDocument & { documentType?: string, documentGroup?: string };
+              if (docWithType.documentGroup) return docWithType.documentGroup.toLowerCase() === 'rfk';
+              if (docWithType.documentType) return docWithType.documentType.toLowerCase() === 'rfk';
+              return doc.id && typeof doc.id === 'string' && doc.id.toUpperCase().includes('RFK');
+            }).length}
+          </code>
+        </Typography>
+        <Typography variant="body2">
+          Current Page: <code>{currentPage}</code> of <code>{totalPages}</code>
+        </Typography>
+        <Typography variant="body2">
+          Items Per Page: <code>{itemsPerPage}</code>
+        </Typography>
+        <Typography variant="body2">
+          Start Index: <code>{(currentPage - 1) * itemsPerPage + 1}</code>
+        </Typography>
+        <Typography variant="body2">
+          End Index: <code>{Math.min(currentPage * itemsPerPage, totalDocuments)}</code>
+        </Typography>
+        <Typography variant="body2">
+          Total Documents: <code>{totalDocuments}</code>
+        </Typography>
+        <Typography variant="body2">
+          Current Page Documents: <code>{documents.length}</code>
+        </Typography>
+      </div>
+      
+      {/* Use pagination controls that respect filtered documents */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Button 
-              onClick={() => setCurrentPage(1)} 
-              disabled={currentPage === 1}
-              variant="outlined"
-              size="small"
-              style={{ minWidth: '60px' }}
+          <Button 
+            onClick={() => setCurrentPage(1)} 
+            disabled={currentPage === 1 || filteredDocuments.length === 0}
+            variant="outlined"
+            size="small"
+            style={{ minWidth: '60px' }}
+          >
+            START
+          </Button>
+          <Button 
+            onClick={goToPrevPage} 
+            disabled={currentPage === 1 || filteredDocuments.length === 0}
+            variant="outlined"
+            size="small"
+            style={{ minWidth: '80px' }}
+          >
+            PREVIOUS
+          </Button>
+          
+          <div style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            margin: '0 0.5rem'
+          }}>
+            <Box 
+              component="span" 
+              sx={{ 
+                px: 2, 
+                py: 1, 
+                border: '1px solid #e2e8f0',
+                borderRadius: '0.25rem',
+                bgcolor: '#f8fafc',
+                fontWeight: 'medium',
+                fontSize: '0.875rem',
+                display: 'flex', 
+                alignItems: 'center'
+              }}
             >
-              START
-            </Button>
-            <Button 
-              onClick={goToPrevPage} 
-              disabled={currentPage === 1}
-              variant="outlined"
-              size="small"
-              style={{ minWidth: '80px' }}
-            >
-              PREVIOUS
-            </Button>
-            
-            <div style={{ 
-              display: 'flex',
-              alignItems: 'center',
-              margin: '0 0.5rem'
-            }}>
-              <Box 
-                component="span" 
-                sx={{ 
-                  px: 2, 
-                  py: 1, 
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '0.25rem',
-                  bgcolor: '#f8fafc',
-                  fontWeight: 'medium',
-                  fontSize: '0.875rem',
-                  display: 'flex', 
-                  alignItems: 'center'
+              Page
+              <TextField
+                size="small"
+                value={currentPage}
+                onChange={(e) => {
+                  const pageNum = parseInt(e.target.value);
+                  if (!isNaN(pageNum) && pageNum > 0 && pageNum <= effectiveTotalPages && filteredDocuments.length > 0) {
+                    setCurrentPage(pageNum);
+                  }
                 }}
-              >
-                Page
-                <TextField
-                  size="small"
-                  value={currentPage}
-                  onChange={(e) => {
-                    const pageNum = parseInt(e.target.value);
-                    if (!isNaN(pageNum) && pageNum > 0 && pageNum <= totalPages) {
-                      setCurrentPage(pageNum);
-                    }
-                  }}
-                  inputProps={{
-                    min: 1,
-                    max: totalPages,
-                    style: { 
-                      width: '40px', 
-                      padding: '4px 8px',
-                      margin: '0 8px',
-                      textAlign: 'center'
-                    }
-                  }}
-                />
-                of {totalPages}
-              </Box>
-            </div>
-            
-            <Button 
-              onClick={goToNextPage} 
-              disabled={currentPage === totalPages}
-              variant="outlined"
-              size="small"
-              style={{ minWidth: '80px' }}
-            >
-              NEXT
-            </Button>
-            <Button 
-              onClick={() => setCurrentPage(totalPages)} 
-              disabled={currentPage === totalPages}
-              variant="outlined"
-              size="small"
-              style={{ minWidth: '60px' }}
-            >
-              END
-            </Button>
+                inputProps={{
+                  min: 1,
+                  max: effectiveTotalPages,
+                  style: { 
+                    width: '40px', 
+                    padding: '4px 8px',
+                    margin: '0 8px',
+                    textAlign: 'center'
+                  }
+                }}
+                disabled={filteredDocuments.length === 0}
+              />
+              of {filteredDocuments.length === 0 ? 0 : effectiveTotalPages}
+            </Box>
+          </div>
+          
+          <Button 
+            onClick={goToNextPage} 
+            disabled={currentPage === effectiveTotalPages || filteredDocuments.length === 0}
+            variant="outlined"
+            size="small"
+            style={{ minWidth: '80px' }}
+          >
+            NEXT
+          </Button>
+          <Button 
+            onClick={() => setCurrentPage(effectiveTotalPages)} 
+            disabled={currentPage === effectiveTotalPages || filteredDocuments.length === 0}
+            variant="outlined"
+            size="small"
+            style={{ minWidth: '60px' }}
+          >
+            END
+          </Button>
         </div>
+      </div>
+      
+      {/* Add pagination summary */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: '1.5rem'
+      }}>
+        <Typography variant="body2" color="textSecondary">
+          {(() => {
+            const start = (currentPage - 1) * itemsPerPage + 1;
+            const end = Math.min(currentPage * itemsPerPage, totalDocuments);
+            return `Showing page ${currentPage} of ${totalPages} (${start}-${end} of ${totalDocuments} total documents)`;
+          })()}
+        </Typography>
       </div>
       
       {/* Confirmation Dialog */}
@@ -690,7 +1078,7 @@ export default function JFKFilesPage() {
           <Button onClick={() => setConfirmDialogOpen(false)} color="primary">
             Cancel
           </Button>
-            <Button 
+          <Button 
             onClick={() => {
               if (confirmationAction) {
                 confirmationAction();
@@ -701,7 +1089,7 @@ export default function JFKFilesPage() {
             autoFocus
           >
             Confirm
-            </Button>
+          </Button>
         </DialogActions>
       </Dialog>
     </div>

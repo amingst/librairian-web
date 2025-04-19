@@ -28,7 +28,8 @@ model Document {
   title             String?
   summary           String?  @db.Text
   fullText          String?  @db.Text
-  documentType      String?
+  documentType      String?  // Legacy field (for backward compatibility)
+  documentGroup     String?  // New field for consistent terminology
   
   // Arrays for data storage (not indexed)
   allNames          String[]
@@ -64,6 +65,7 @@ model Document {
   
   // Efficient indexes (keeping only what's necessary)
   @@index([documentType])
+  @@index([documentGroup])
   @@index([hasHandwrittenNotes])
   @@index([hasStamps])
   @@index([hasFullText])

@@ -99,9 +99,14 @@ export const checkIfDocumentNeedsRepair = async (documentId: string): Promise<bo
 };
 
 // Check document status to determine needed steps
-export const checkDocumentStatus = async (documentId: string): Promise<DocumentStatus> => {
+export const checkDocumentStatus = async (documentId: string, documentType?: string): Promise<DocumentStatus> => {
   try {
-    const response = await fetch(`/api/jfk/document-status/check?documentId=${documentId}`);
+    // Determine document type from ID if not provided
+    const isRfkDocument = documentType === 'rfk' || documentId.toLowerCase().includes('rfk');
+    const effectiveDocType = isRfkDocument ? 'rfk' : 'jfk';
+    
+    // Add the document type to the query params
+    const response = await fetch(`/api/jfk/document-status?documentId=${documentId}&documentType=${effectiveDocType}`);
     const data = await response.json();
     
     if (response.ok) {
