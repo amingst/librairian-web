@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 // import { useAuth } from '../../lib/context/AuthContext';
 import GlobalDocumentGroupFilter from './GlobalDocumentGroupFilter';
+import { ThemeToggle } from '../ui/theme-toggle';
 
 const Header = () => {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -39,6 +40,7 @@ const Header = () => {
 					position: 'relative',
 				}}
 			>
+				<ThemeToggle />
 				<a
 					href='/jfk-files'
 					style={{
