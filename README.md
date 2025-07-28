@@ -1,10 +1,18 @@
-# Librairian Web
+# Librairian Monorepo
 
-A web application focused on accessing, analyzing, and visualizing data related to JFK assassination documents.
+A monorepo containing the Librairian application - an AI-assisted document analysis and search interface focused on JFK assassination documents.
+
+## Structure
+
+This monorepo contains the following packages:
+
+- **`client/`**: Next.js frontend application
+- **`server/`**: Backend server (to be added)
+- **`shared/`**: Shared types and utilities
 
 ## Overview
 
-Librairian Web provides an interface for interacting with a collection of JFK-related documents and associated data. Key functionalities include:
+Librairian provides an interface for interacting with a collection of JFK-related documents and associated data. Key functionalities include:
 
 - Browsing and viewing documents within the `/jfk-files` section.
 - Detailed views for specific documents and related individuals.
@@ -27,6 +35,33 @@ Librairian Web provides an interface for interacting with a collection of JFK-re
 - **Backend API**: Comprehensive API routes under `/api/` handle authentication, data retrieval (documents, connections, profiles), processing, capture, and search functionalities.
 
 ## Getting Started
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
+
+### Installation
+
+From the root directory:
+
+```bash
+# Install all dependencies for all workspaces
+npm install
+
+# Or install dependencies for specific workspace
+npm install --workspace=client
+```
+
+### Development
+
+```bash
+# Start the client development server
+npm run dev
+
+# Or run from the client directory
+cd client && npm run dev
+```
 
 ### Prerequisites
 

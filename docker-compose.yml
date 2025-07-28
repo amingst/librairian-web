@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+    # Shared types service (base layer for other services)
+    shared-types:
+        build:
+            context: .
+            dockerfile: shared/types/Dockerfile
+        volumes:
+            - shared_types_dist:/app/dist
+        profiles:
+            - build-only
+
+    # HTML Scraper MCP Service
+    html-scraper-mcp:
+        build:
+            context: .
+            dockerfile: server/news-scraper/Dockerfile
+        container_name: html-scraper-mcp
+        restart: unless-stopped
+        ports:
+            - '3001:3001'
+        environment:
+            - NODE_ENV=production
+            - PORT=3001
+            - HOST=0.0.0.0
+            - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+            - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/news_scraper
+        env_file:
+            - html-scraper-mcp/.env
+        depends_on:
+            shared-types:
+                condition: service_completed_successfully
+            postgres:
+                condition: service_healthy
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'wget',
+                    '--no-verbose',
+                    '--tries=1',
+                    '--spider',
+                    'http://localhost:3001/health',
+                    '||',
+                    'exit',
+                    '1',
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    # Text Analysis MCP Service
+    text-analysis-mcp:
+        build:
+            context: .
+            dockerfile: server/text-analysis/Dockerfile
+        container_name: text-analysis-mcp
+        restart: unless-stopped
+        ports:
+            - '3002:3002'
+        environment:
+            - NODE_ENV=production
+            - PORT=3002
+            - HOST=0.0.0.0
+            - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/news_scraper
+        env_file:
+            - text-analysis-mcp/.env
+        depends_on:
+            shared-types:
+                condition: service_completed_successfully
+            postgres:
+                condition: service_healthy
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'wget',
+                    '--no-verbose',
+                    '--tries=1',
+                    '--spider',
+                    'http://localhost:3002/health',
+                    '||',
+                    'exit',
+                    '1',
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    # Next.js Client Application
+    client:
+        build:
+            context: .
+            dockerfile: client/Dockerfile
+        container_name: client
+        restart: unless-stopped
+        ports:
+            - '3000:3000'
+        environment:
+            - NODE_ENV=production
+            - PORT=3000
+            - NEXT_TELEMETRY_DISABLED=1
+            # Add your environment variables for the client
+            - HTML_SCRAPER_URL=http://html-scraper-mcp:3001
+            - TEXT_ANALYSIS_URL=http://text-analysis-mcp:3002
+        depends_on:
+            html-scraper-mcp:
+                condition: service_healthy
+            text-analysis-mcp:
+                condition: service_healthy
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'wget',
+                    '--no-verbose',
+                    '--tries=1',
+                    '--spider',
+                    'http://localhost:3000',
+                    '||',
+                    'exit',
+                    '1',
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    # PostgreSQL Database (Production)
+    postgres:
+        image: postgres:16-alpine
+        container_name: postgres-prod
+        restart: unless-stopped
+        ports:
+            - '5432:5432'
+        environment:
+            - POSTGRES_DB=news_scraper
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./news-scraper-shared/prisma/add_fulltext_index.sql:/docker-entrypoint-initdb.d/add_fulltext_index.sql
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U postgres']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    # pgAdmin (Production)
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        container_name: pgadmin-prod
+        restart: unless-stopped
+        ports:
+            - '5050:80'
+        environment:
+            - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@admin.com}
+            - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+            - PGADMIN_CONFIG_SERVER_MODE=True
+        volumes:
+            - pgadmin_data:/var/lib/pgadmin
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - news-scraper-network
+
+networks:
+    news-scraper-network:
+        driver: bridge
+
+volumes:
+    shared_types_dist:
+    postgres_data:
+    pgadmin_data:
