@@ -1,10 +1,10 @@
-import { SourcesExample } from '@/components/SourcesExample';
+import NewsScraperExample from '../../components/news/NewsScraperExample';
 
-export default function SourcesPage() {
+export default function NewsHomePage() {
 	return (
 		<div className='min-h-screen'>
 			<div className='container mx-auto p-4'>
-				<SourcesExample />
+				<NewsScraperExample />
 			</div>
 		</div>
 	);

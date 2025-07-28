@@ -13,13 +13,20 @@ export interface DocumentItem {
 	id: string;
 	title: string;
 	url: string;
-	type: 'document' | 'page';
+	type: 'document' | 'page' | 'article';
+	source?: {
+		site?: string;
+		domain?: string;
+	};
+	publishDate?: string;
+	excerpt?: string;
 }
 
 // Define the context interface
 interface DocumentDockContextType {
 	queue: DocumentItem[];
 	addToQueue: (item: DocumentItem) => void;
+	addArticleToQueue: (article: any) => void;
 	removeFromQueue: (id: string) => void;
 	clearQueue: () => void;
 	reorderQueue: (fromIndex: number, toIndex: number) => void;
@@ -30,6 +37,7 @@ interface DocumentDockContextType {
 const DocumentDockContext = createContext<DocumentDockContextType>({
 	queue: [],
 	addToQueue: () => {},
+	addArticleToQueue: () => {},
 	removeFromQueue: () => {},
 	clearQueue: () => {},
 	reorderQueue: () => {},
@@ -62,6 +70,22 @@ export function DocumentDockProvider({ children }: { children: ReactNode }) {
 			localStorage.setItem('documentDockQueue', JSON.stringify(queue));
 		}
 	}, [queue]);
+
+	// Add an article to the queue (helper function)
+	const addArticleToQueue = (article: any) => {
+		// Convert article to DocumentItem format
+		const documentItem: DocumentItem = {
+			id: article.id || article.link || new Date().getTime().toString(),
+			title: article.title,
+			url: article.link || article.url,
+			type: 'article',
+			source: article.source,
+			publishDate: article.timestamp || article.publishDate,
+			excerpt: article.excerpt || article.summary,
+		};
+
+		addToQueue(documentItem);
+	};
 
 	// Add an item to the queue
 	const addToQueue = (item: DocumentItem) => {
@@ -96,6 +120,7 @@ export function DocumentDockProvider({ children }: { children: ReactNode }) {
 			value={{
 				queue,
 				addToQueue,
+				addArticleToQueue,
 				removeFromQueue,
 				clearQueue,
 				reorderQueue,

@@ -1334,8 +1334,8 @@ export function DocumentDock() {
 					ref={audioRef}
 					src={
 						currentPlayer === 'podcast'
-							? podcastUrl || ''
-							: reportUrl || ''
+							? podcastUrl || undefined
+							: reportUrl || undefined
 					}
 					onEnded={() => setIsPlaying(false)}
 					onPlay={() => setIsPlaying(true)}
