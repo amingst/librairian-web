@@ -59,6 +59,7 @@ export interface SiteSelectors {
 export interface NewsSource {
 	id: string;
 	name: string;
+	icon?: string; // URL to icon image
 	category: string;
 	method: string;
 }

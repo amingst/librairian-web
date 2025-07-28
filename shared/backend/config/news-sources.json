@@ -5,6 +5,7 @@
 			"url": "https://www.foxnews.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://static.foxnews.com/static/orion/styles/img/fox-news/favicons/favicon-32x32.png",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/us/\"]"
 			}
@@ -14,6 +15,7 @@
 			"url": "https://www.foxbusiness.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=foxbusiness.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/economy/\"]"
 			}
@@ -23,6 +25,7 @@
 			"url": "https://apnews.com",
 			"method": "static",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=apnews.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/article/\"]"
 			}
@@ -32,6 +35,7 @@
 			"url": "https://www.dailymail.co.uk/news/index.html",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=dailymail.co.uk&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/article-\"]"
 			}
@@ -41,6 +45,7 @@
 			"url": "https://thepostmillennial.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=thepostmillennial.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"]"
 			}
@@ -50,6 +55,7 @@
 			"url": "https://nypost.com/news/",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=nypost.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"]"
 			}
@@ -59,6 +65,7 @@
 			"url": "https://www.politico.com",
 			"method": "puppeteer",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=politico.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"]"
 			}
@@ -68,6 +75,7 @@
 			"url": "https://news.yahoo.com",
 			"method": "puppeteer",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=news.yahoo.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[data-uuid], a[data-test-locator=\"stream-item\"], .js-stream-content a"
 			}
@@ -77,6 +85,7 @@
 			"url": "https://www.cnn.com",
 			"method": "puppeteer",
 			"category": "liberal",
+			"icon": "https://www.google.com/s2/favicons?domain=cnn.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"], a[data-link-type=\"article\"]"
 			}
@@ -86,6 +95,7 @@
 			"url": "https://www.bbc.com/news",
 			"method": "puppeteer",
 			"category": "international",
+			"icon": "https://www.google.com/s2/favicons?domain=bbc.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[data-testid*=\"internal-link\"], a[href*=\"/news/\"]"
 			}
@@ -95,6 +105,7 @@
 			"url": "https://www.breitbart.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=breitbart.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/2025/\"]"
 			}
@@ -104,6 +115,7 @@
 			"url": "https://www.dailywire.com",
 			"method": "puppeteer",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=dailywire.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"], a[data-testid*=\"article\"]"
 			}
@@ -113,6 +125,7 @@
 			"url": "https://www.theblaze.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=theblaze.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"], a[href*=\"/politics/\"]"
 			}
@@ -122,6 +135,7 @@
 			"url": "https://townhall.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=townhall.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/columnists/\"], a[href*=\"/news/\"]"
 			}
@@ -131,6 +145,7 @@
 			"url": "https://www.washingtonexaminer.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=washingtonexaminer.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"], a[href*=\"/politics/\"]"
 			}
@@ -140,6 +155,7 @@
 			"url": "https://thefederalist.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=thefederalist.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/2025/\"]"
 			}
@@ -149,6 +165,7 @@
 			"url": "https://thehill.com",
 			"method": "static",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=thehill.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/homenews/\"], a[href*=\"/policy/\"]"
 			}
@@ -158,6 +175,7 @@
 			"url": "https://www.huffpost.com",
 			"method": "puppeteer",
 			"category": "liberal",
+			"icon": "https://www.google.com/s2/favicons?domain=huffpost.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/entry/\"], a[data-vars-click-tracker*=\"article\"]"
 			}
@@ -167,6 +185,7 @@
 			"url": "https://www.thenation.com",
 			"method": "static",
 			"category": "progressive",
+			"icon": "https://www.google.com/s2/favicons?domain=thenation.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/article/\"], a[href*=\"/politics/\"]"
 			}
@@ -176,6 +195,7 @@
 			"url": "https://www.motherjones.com",
 			"method": "static",
 			"category": "progressive",
+			"icon": "https://www.google.com/s2/favicons?domain=motherjones.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/2025/\"]"
 			}
@@ -185,6 +205,7 @@
 			"url": "https://www.usatoday.com",
 			"method": "puppeteer",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=usatoday.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/story/\"], a[data-module=\"ArticleHeadline\"]"
 			}
@@ -194,6 +215,7 @@
 			"url": "https://www.washingtonpost.com",
 			"method": "puppeteer",
 			"category": "liberal",
+			"icon": "https://www.google.com/s2/favicons?domain=washingtonpost.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[data-pb-field=\"headline\"], a[href*=\"/politics/\"]"
 			}
@@ -203,6 +225,7 @@
 			"url": "https://www.npr.org/sections/news/",
 			"method": "static",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=npr.org&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"]"
 			}
@@ -212,6 +235,7 @@
 			"url": "https://www.pbs.org/newshour/",
 			"method": "static",
 			"category": "centrist",
+			"icon": "https://www.google.com/s2/favicons?domain=pbs.org&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/nation/\"]"
 			}
@@ -221,6 +245,7 @@
 			"url": "https://www.bloomberg.com",
 			"method": "puppeteer",
 			"category": "business",
+			"icon": "https://www.google.com/s2/favicons?domain=bloomberg.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"], a[data-module=\"ArticleLink\"]"
 			}
@@ -230,6 +255,7 @@
 			"url": "https://www.cnbc.com",
 			"method": "puppeteer",
 			"category": "business",
+			"icon": "https://www.google.com/s2/favicons?domain=cnbc.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"], a[data-module=\"ArticleHeadline\"]"
 			}
@@ -239,6 +265,7 @@
 			"url": "https://techcrunch.com",
 			"method": "static",
 			"category": "tech",
+			"icon": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"], a[class*=\"post-block__title__link\"]"
 			}
@@ -248,6 +275,7 @@
 			"url": "https://arstechnica.com",
 			"method": "static",
 			"category": "tech",
+			"icon": "https://www.google.com/s2/favicons?domain=arstechnica.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"], h2 a"
 			}
@@ -257,6 +285,7 @@
 			"url": "https://www.theverge.com",
 			"method": "puppeteer",
 			"category": "tech",
+			"icon": "https://www.google.com/s2/favicons?domain=theverge.com&sz=32",
 			"selectors": {
 				"linkFilter": "a[href*=\"/2025/\"], a[data-analytics-link=\"article\"]"
 			}
@@ -268,6 +297,7 @@
 			"url": "https://www.reuters.com",
 			"method": "puppeteer",
 			"category": "international",
+			"icon": "https://www.google.com/s2/favicons?domain=reuters.com&sz=32",
 			"reason": "Anti-bot protection - returns 0 articles",
 			"selectors": {
 				"linkFilter": "a[data-testid*=\"Link\"], h2 a, h3 a, a[href*=\"/world/\"], a[href*=\"/business/\"]"
@@ -278,6 +308,7 @@
 			"url": "https://www.msnbc.com",
 			"method": "puppeteer",
 			"category": "liberal",
+			"icon": "https://www.google.com/s2/favicons?domain=msnbc.com&sz=32",
 			"reason": "Access issues - returns 0 articles",
 			"selectors": {
 				"linkFilter": "a[href*=\"/politics/\"], a[href*=\"/news/\"]"
@@ -288,6 +319,7 @@
 			"url": "https://www.wsj.com",
 			"method": "puppeteer",
 			"category": "business",
+			"icon": "https://www.google.com/s2/favicons?domain=wsj.com&sz=32",
 			"reason": "Paywall/access issues - returns 0 articles",
 			"selectors": {
 				"linkFilter": "a[href*=\"/articles/\"], h3 a"
@@ -298,6 +330,7 @@
 			"url": "https://www.nationalreview.com",
 			"method": "static",
 			"category": "conservative",
+			"icon": "https://www.google.com/s2/favicons?domain=nationalreview.com&sz=32",
 			"reason": "403 Forbidden error",
 			"selectors": {
 				"linkFilter": "a[href*=\"/news/\"], a[href*=\"/politics/\"]"
@@ -308,6 +341,7 @@
 			"url": "https://www.marketwatch.com",
 			"method": "static",
 			"category": "business",
+			"icon": "https://www.google.com/s2/favicons?domain=marketwatch.com&sz=32",
 			"reason": "401 Unauthorized error",
 			"selectors": {
 				"linkFilter": "a[href*=\"/story/\"], a[href*=\"/politics/\"]"

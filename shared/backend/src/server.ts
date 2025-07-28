@@ -216,6 +216,7 @@ export class MCPHttpServer {
 				const sources = config.sources.map(
 					(source: any, index: number) => ({
 						id: this.generateSourceId(source.name, source.url),
+						icon: source.icon || undefined,
 						name: source.name,
 						category: source.category,
 						method: source.method,

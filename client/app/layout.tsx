@@ -8,6 +8,7 @@ import { DocumentDock } from '../components/ui/DocumentDock';
 import Link from 'next/link';
 import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
 import { ThemeProvider } from '../lib/context/ThemeContext';
+import { NewsSourcesProvider } from '@/lib/context/NewsSourceContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,8 +34,10 @@ export default function RootLayout({
 				>
 					<DocumentGroupProvider>
 						<DocumentDockProvider>
-							{children}
-							<DocumentDock />
+							<NewsSourcesProvider>
+								{children}
+								<DocumentDock />
+							</NewsSourcesProvider>
 						</DocumentDockProvider>
 					</DocumentGroupProvider>
 				</ThemeProvider>
