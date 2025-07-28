@@ -1,38 +1,43 @@
 {
-	"name": "news-scraper-monorepo",
-	"private": true,
-	"workspaces": [
-		"shared/backend",
-		"shared/types",
-		"server/news-scraper",
-		"server/text-analysis",
-		"client"
-	],
-	"scripts": {
-		"install:all": "npm install --workspaces",
-		"build:all": "npm run build --workspaces",
-		"clean:all": "npm run clean --workspaces",
-		"build:docker": "docker-compose -f docker-compose.dev.yml up --build",
-		"dev-docker": "docker-compose -f docker-compose.dev.yml up",
-		"prod": "docker-compose up --build",
-		"dev:local": "npm run db:local && npm run services:local",
-		"services:local": "concurrently -n types,backend,html,text,client \"npm run dev -w shared/types\" \"npm run dev -w shared/backend\" \"npm run dev -w html-scraper-mcp\" \"npm run dev -w text-analysis-mcp\" \"npm run dev -w news-scraper-client\"",
-		"db:local": "docker-compose -f docker-compose.dev.yml up -d postgres pgadmin-dev",
-		"db:local:stop": "docker-compose -f docker-compose.dev.yml stop postgres pgadmin-dev",
-		"db:migrate": "prisma migrate dev",
-		"db:reset": "prisma migrate reset",
-		"db:populate": "ts-node --transpile-only ./scripts/populateDb.ts",
-		"db:populate-test": "ts-node --transpile-only ./scripts/populateDb.ts --test",
-		"db:setup": "node ./scripts/setupDb.js",
-		"post": "npm run db:setup && npx prisma generate",
-		"clean": "rm -rf node_modules && rm -rf package-lock.json && npm run clean:all"
-	},
-	"dependencies": {
-		"@prisma/client": "^6.12.0"
-	},
-	"devDependencies": {
-		"concurrently": "^8.2.2",
-		"prisma": "^6.12.0",
-		"tsx": "^4.7.0"
-	}
+  "name": "news-scraper-monorepo",
+  "private": true,
+  "workspaces": [
+    "shared/backend",
+    "shared/types",
+    "server/news-scraper",
+    "server/text-analysis",
+    "client"
+  ],
+  "scripts": {
+    "install:all": "npm install --workspaces",
+    "build:all": "npm run build --workspaces",
+    "clean:all": "npm run clean --workspaces",
+    "build:docker": "docker-compose -f docker-compose.dev.yml up --build",
+    "dev-docker": "docker-compose -f docker-compose.dev.yml up",
+    "prod": "docker-compose up --build",
+    "dev:client": "npm run dev --workspace=client",
+    "dev:local": "npm run db:local && npm run services:local",
+    "services:local": "concurrently -n types,backend,html,text,client \"npm run dev -w shared/types\" \"npm run dev -w shared/backend\" \"npm run dev -w html-scraper-mcp\" \"npm run dev -w text-analysis-mcp\" \"npm run dev -w news-scraper-client\"",
+    "db:local": "docker-compose -f docker-compose.dev.yml up -d postgres pgadmin-dev",
+    "db:local:stop": "docker-compose -f docker-compose.dev.yml stop postgres pgadmin-dev",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
+    "db:populate": "ts-node --transpile-only ./scripts/populateDb.ts",
+    "db:populate-test": "ts-node --transpile-only ./scripts/populateDb.ts --test",
+    "db:setup": "node ./scripts/setupDb.js",
+    "post": "npm run db:setup && npx prisma generate",
+    "clean": "rm -rf node_modules && rm -rf package-lock.json && npm run clean:all"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "next": "15.4.4",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "tailwindcss": "^4.1.11"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^6.12.0",
+    "tsx": "^4.7.0"
+  }
 }

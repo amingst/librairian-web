@@ -1092,7 +1092,7 @@ export default function ForceGraphVisualization({
         </div>
         
         <form onSubmit={handlePersonSearch} className="flex space-x-2 w-full max-w-md mb-6">
-          <div className="relative flex-grow">
+          <div className="relative grow">
             <Input
               value={personName}
               onChange={handlePersonNameChange}
@@ -1473,7 +1473,7 @@ export default function ForceGraphVisualization({
                     id="connection-layers-person"
                     value={connectionLayers}
                     onChange={(e) => setConnectionLayers(Number(e.target.value))}
-                    className="text-xs py-0 h-7 border border-gray-200 dark:border-gray-700 rounded flex-grow"
+                    className="text-xs py-0 h-7 border border-gray-200 dark:border-gray-700 rounded grow"
                   >
                     <option value="1">1 Layer</option>
                     <option value="2">2 Layers</option>
@@ -1502,7 +1502,7 @@ export default function ForceGraphVisualization({
             ) : (
               <div className="flex flex-col space-y-2 w-full">
                 <form onSubmit={handlePersonSearch} className="flex space-x-1">
-                  <div className="relative flex-grow">
+                  <div className="relative grow">
                     <Input
                       value={personName}
                       onChange={handlePersonNameChange}
@@ -1539,7 +1539,7 @@ export default function ForceGraphVisualization({
                     id="connection-layers-doc"
                     value={connectionLayers}
                     onChange={(e) => setConnectionLayers(Number(e.target.value))}
-                    className="text-xs py-0 h-7 border border-gray-200 dark:border-gray-700 rounded flex-grow"
+                    className="text-xs py-0 h-7 border border-gray-200 dark:border-gray-700 rounded grow"
                   >
                     <option value="1">1 Layer</option>
                     <option value="2">2 Layers</option>
@@ -1601,7 +1601,7 @@ export default function ForceGraphVisualization({
 
           {/* Super simple tooltip with direct node data */}
           {hoveredNode?.type === 'document' && (
-            <div className="absolute top-2 left-2 bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-[320px] z-[9999]">
+            <div className="absolute top-2 left-2 bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-[320px] z-9999">
               <div className="flex items-center mb-2">
                 <div
                   className="w-3 h-3 rounded-full mr-2"
@@ -1652,7 +1652,7 @@ export default function ForceGraphVisualization({
           
           {/* Simple tooltip for other node types */}
           {hoveredNode && hoveredNode.type !== 'document' && (
-            <div className="absolute top-2 left-2 bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-3 max-w-[250px] z-[9999]">
+            <div className="absolute top-2 left-2 bg-white/95 dark:bg-gray-800/95 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-3 max-w-[250px] z-9999">
               <div className="flex items-center mb-2">
                 <div
                   className="w-3 h-3 rounded-full mr-2"

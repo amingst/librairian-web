@@ -2686,7 +2686,7 @@ export default function Chronosphere({
         .attr('class', 'cloud-term-group')
         .attr('transform', `translate(${x}, ${y})`);
       
-      // Add subtle shadow/depth effect with slightly offset dark copy
+      // Add subtle shadow effect with slightly offset dark copy
       termGroup.append('text')
         .attr('class', 'cloud-term-shadow')
         .attr('text-anchor', 'middle')

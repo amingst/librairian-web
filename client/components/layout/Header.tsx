@@ -19,7 +19,7 @@ const Header = () => {
 	};
 
 	return (
-		<header className='header bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'>
+		<header className='header bg-linear-to-r from-indigo-600 to-purple-600 text-white shadow-md'>
 			<div className='header-container container'>
 				<Link href='/' className='logo text-white flex items-center'>
 					<div className='flex items-baseline'>

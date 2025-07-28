@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Download, Info, Users, MapPin, Calendar, Package, Stamp, FileText, ChevronDown, ChevronUp, Maximize2, X, Clock } from 'lucide-react';
 import { Card, CardContent } from '../../../components/ui/card';
@@ -37,7 +37,7 @@ function SimplifiedTimelineVisualization({ startDate, endDate, events = [] }: { 
           {/* Event list with forced horizontal layout */}
           <div className="flex justify-between items-start pt-8 pb-4">
             {/* Start date */}
-            <div className="text-center flex-shrink-0 mr-2">
+            <div className="text-center shrink-0 mr-2">
               <div className="w-4 h-4 rounded-full bg-blue-600 mx-auto mb-1"></div>
               <div className="text-xs bg-blue-100 px-2 py-1 rounded font-bold text-blue-800">
                 {formatShortDate(startDate)}
@@ -46,7 +46,7 @@ function SimplifiedTimelineVisualization({ startDate, endDate, events = [] }: { 
             
             {/* Events */}
             {events.map((event, index) => (
-              <div key={index} className="text-center flex-shrink-0 mx-2">
+              <div key={index} className="text-center shrink-0 mx-2">
                 <div className="w-4 h-4 rounded-full bg-red-500 mx-auto mb-1"></div>
                 <div className="text-xs bg-red-100 px-2 py-1 rounded font-bold text-red-800 whitespace-nowrap">
                   {formatShortDate(event.date)}
@@ -57,7 +57,7 @@ function SimplifiedTimelineVisualization({ startDate, endDate, events = [] }: { 
             
             {/* End date (if different) */}
             {endDate && endDate !== startDate && (
-              <div className="text-center flex-shrink-0 ml-2">
+              <div className="text-center shrink-0 ml-2">
                 <div className="w-4 h-4 rounded-full bg-blue-600 mx-auto mb-1"></div>
                 <div className="text-xs bg-blue-100 px-2 py-1 rounded font-bold text-blue-800">
                   {formatShortDate(endDate)}
@@ -79,7 +79,7 @@ function SimplePlacesVisualization({ places = [] }: { places: string[] }) {
       <h3 className="font-bold text-lg text-green-800 mb-4">UPDATED Map</h3>
 
       {/* Map container */}
-      <div className="relative w-full aspect-[2/1] border-2 border-green-300 overflow-hidden rounded-lg mb-3">
+      <div className="relative w-full aspect-2/1 border-2 border-green-300 overflow-hidden rounded-lg mb-3">
         {/* Map image */}
         <img 
           src="/world-map-simple.png" 
@@ -195,7 +195,7 @@ function DocumentSummarySection({
       }}
     >
       <div className="flex justify-between items-start mb-2">
-        <h2 className="text-xl font-bold text-gray-800 flex-grow">{document?.title || 'JFK Document'}</h2>
+        <h2 className="text-xl font-bold text-gray-800 grow">{document?.title || 'JFK Document'}</h2>
         <button
           onClick={() => setShowFullSummary(!showFullSummary)}
           className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
@@ -236,7 +236,8 @@ function DocumentSummarySection({
 }
 
 // Main document page component
-export default function DocumentPage({ params }: { params: { id: string } }) {
+export default function DocumentPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params);
   const { id } = params;
   const [document, setDocument] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,19 +246,19 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   const [imageSrc, setImageSrc] = useState<string>('');
   const [imageError, setImageError] = useState<string | null>(null);
   const [useProxy, setUseProxy] = useState<boolean>(true);
-  
+
   // UI state variables
   const [showFullSummary, setShowFullSummary] = useState<boolean>(false);
   const [expandedImageIdx, setExpandedImageIdx] = useState<number | null>(null);
-  
+
   // UPDATING - Add state to track image loading
   const [isMapImageLoaded, setIsMapImageLoaded] = useState<boolean>(false);
-  
+
   // Add state to track how the document was found
   const [isArchiveId, setIsArchiveId] = useState<boolean>(false);
   const [isHashedId, setIsHashedId] = useState<boolean>(false);
   const [originalId, setOriginalId] = useState<string | null>(null);
-  
+
   // Define timeline event type
   type TimelineEvent = {
     date: string;
@@ -275,11 +276,11 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     places?: string[];
     objects?: string[];
   };
-  
+
   // Add state for all document dates and current page dates
   const [allDocumentDates, setAllDocumentDates] = useState<string[]>([]);
   const [currentPageDates, setCurrentPageDates] = useState<string[]>([]);
-  
+
   // Add state for tracking current page entities and mapping entities to their pages
   const [currentPageNames, setCurrentPageNames] = useState<string[]>([]);
   const [currentPagePlaces, setCurrentPagePlaces] = useState<string[]>([]);
@@ -302,7 +303,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     // { date: '1963-11-22', label: 'Assassination' },
     // { date: '1963-12-15', label: 'Investigation' },
   ];
-  
+
   // Mock locations
   const mockPlaces: string[] = [
     // "Washington", "Moscow", "Dallas", "Cuba", "Mexico City", 
@@ -712,7 +713,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       fetchPageContent();
     }
   }, [currentPage, document, id, useProxy]);
-  
+
   // Update image source when page changes
   useEffect(() => {
     if (document) {
@@ -780,7 +781,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`)}`
       : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=analysis${collectionParam}`;
   };
-  
+
   const getDocumentPdfUrl = () => {
     // Always use document.id (internal ID) for media URLs
     const effectiveId = document?.id;
@@ -803,7 +804,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       ? `/api/jfk/proxy?url=${encodeURIComponent(`${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf${collectionParam}`)}`
       : `${API_BASE_URL}/api/jfk/media?id=${cleanId}&type=pdf${collectionParam}`;
   };
-  
+
   const getPageImageUrl = (pageNum: number) => {
     // Always use document.id (internal ID) for media URLs
     const effectiveId = document?.id;

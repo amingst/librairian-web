@@ -594,7 +594,7 @@ export default function PersonProfilePage() {
                             </button>
                           </div>
                           
-                          <h3 className="text-base font-semibold mb-2 flex-shrink-0">{entityProfile.name}</h3>
+                          <h3 className="text-base font-semibold mb-2 shrink-0">{entityProfile.name}</h3>
                           
                           <div className="text-sm text-gray-700 dark:text-gray-300 overflow-y-auto" style={{ flexGrow: 1 }}>
                             {activeTab === 'ai' && (
@@ -703,7 +703,7 @@ export default function PersonProfilePage() {
                               }}
                             >
                               <div className="flex flex-col h-full">
-                                <Link href={`/jfk-files/${doc.id}`} className="flex-grow">
+                                <Link href={`/jfk-files/${doc.id}`} className="grow">
                                   <p className={`font-medium text-sm line-clamp-2 mb-1 ${
                                     isDocumentHighlighted(doc) 
                                       ? 'text-red-600 dark:text-red-400' 

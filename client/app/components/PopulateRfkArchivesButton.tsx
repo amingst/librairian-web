@@ -106,7 +106,7 @@ export default function PopulateRfkArchivesButton() {
           {isPopulating && (
             <div className="py-6">
               <div className="relative h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 bg-[length:200%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
+                <div className="absolute inset-0 bg-linear-to-r from-blue-500 via-blue-600 to-blue-500 bg-size-[200%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
               </div>
               <p className="text-sm text-muted-foreground text-center mt-2">
                 Fetching and processing documents from archives.gov...

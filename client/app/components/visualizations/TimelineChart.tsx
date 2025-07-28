@@ -195,7 +195,7 @@ export default function TimelineChart({
                   onClick={() => handleDateClick(dateItem.date, dateItem.document_count)}
                 >
                   <div className="w-32 text-sm font-medium">{new Date(dateItem.date).toLocaleDateString()}</div>
-                  <div className="flex-grow">
+                  <div className="grow">
                     <div className="bg-gray-200 rounded-full h-5 w-full overflow-hidden">
                       <div 
                         className="bg-blue-500 h-5 rounded-full flex items-center justify-end pr-2" 

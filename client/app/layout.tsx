@@ -7,31 +7,39 @@ import { DocumentDockProvider } from '../lib/context/DocumentDockContext';
 import { DocumentDock } from '../components/ui/DocumentDock';
 import Link from 'next/link';
 import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
+import { ThemeProvider } from '../lib/context/ThemeContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ΛLΞXΛNDRIΛ LIBRΛIRIΛN',
-  description: 'Your digital library of web content',
+	title: 'ΛLΞXΛNDRIΛ LIBRΛIRIΛN',
+	description: 'Your digital library of web content',
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: {
-  children: React.ReactNode;
+	children: React.ReactNode;
 }) {
-  return (
-    <html lang="en">
-      <body className={`${inter.className}`}>
-        {/* <AuthProvider> */}
-          <DocumentGroupProvider>
-            <DocumentDockProvider>
-              {children}
-              <DocumentDock />
-            </DocumentDockProvider>
-          </DocumentGroupProvider>
-        {/* </AuthProvider> */}
-      </body>
-    </html>
-  );
-} 
+	return (
+		<html lang='en' suppressHydrationWarning>
+			<body className={`${inter.className}`}>
+				{/* <AuthProvider> */}
+				<ThemeProvider
+					attribute='class'
+					defaultTheme='dark'
+					enableSystem
+					disableTransitionOnChange
+				>
+					<DocumentGroupProvider>
+						<DocumentDockProvider>
+							{children}
+							<DocumentDock />
+						</DocumentDockProvider>
+					</DocumentGroupProvider>
+				</ThemeProvider>
+				{/* </AuthProvider> */}
+			</body>
+		</html>
+	);
+}
