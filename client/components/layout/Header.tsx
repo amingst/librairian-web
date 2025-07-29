@@ -26,27 +26,30 @@ const Header = () => {
 				color: 'white',
 				padding: '12px 16px',
 				boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-				position: 'relative',
+				position: 'fixed',
+				top: 0,
+				left: 0,
+				right: 0,
 				width: '100%',
+				zIndex: 1000,
 			}}
 		>
 			<div
 				style={{
 					display: 'flex',
 					alignItems: 'center',
+					justifyContent: 'space-between',
 					maxWidth: '1280px',
 					margin: '0 auto',
 					width: '100%',
 					position: 'relative',
 				}}
 			>
-				<ThemeToggle />
 				<a
 					href='/jfk-files'
 					style={{
 						display: 'block',
 						flexShrink: 0,
-						marginRight: '16px',
 						fontSize: '28px',
 						fontWeight: 200,
 						letterSpacing: '0.05em',
@@ -57,16 +60,17 @@ const Header = () => {
 				>
 					LIBRΛIRIΛN
 				</a>
+				
 				<div
 					style={{
-						marginLeft: 'auto',
 						display: 'flex',
 						alignItems: 'center',
-						gap: '8px',
+						gap: '16px',
 					}}
 				>
 					{/* <GlobalDocumentGroupFilter />
                                   <ResetFilterButton /> */}
+					<ThemeToggle />
 				</div>
 			</div>
 		</header>

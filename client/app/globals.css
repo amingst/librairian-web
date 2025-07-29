@@ -119,5 +119,11 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+		padding-top: 64px; /* Account for fixed header height */
+	}
+
+	/* Ensure main content doesn't get hidden behind fixed header */
+	main {
+		min-height: calc(100vh - 64px);
 	}
 }

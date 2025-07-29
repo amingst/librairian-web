@@ -1,4 +1,5 @@
-import { DocumentItem } from '@/contexts/DocumentDockContext';
+import React from 'react';
+import { DocumentItem } from '@/lib/context/DocumentDockContext';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -10,7 +11,7 @@ export default function SortableDocumentItem({
 }: {
 	item: DocumentItem;
 	index: number;
-	children: React.ReactNode;
+	children: (dragListeners: any) => React.ReactNode;
 	isDragging?: boolean;
 }) {
 	const {
@@ -31,12 +32,11 @@ export default function SortableDocumentItem({
 	return (
 		<div ref={setNodeRef} style={style} {...attributes}>
 			<div
-				{...listeners}
 				className={`inline-block w-60 h-80 bg-card border border-border rounded-lg shadow-sm mr-3 mb-3 align-top overflow-hidden ${
-					isSortableDragging ? 'cursor-grabbing' : 'cursor-grab'
+					isSortableDragging ? 'border-primary' : ''
 				}`}
 			>
-				{children}
+				{children(listeners)}
 			</div>
 		</div>
 	);

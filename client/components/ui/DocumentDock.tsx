@@ -50,6 +50,8 @@ import {
 	sortableKeyboardCoordinates,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { Sheet, SheetContent, SheetTrigger } from './sheet';
+import { ScrollArea } from './scroll-area';
 import InvestigationsPanel from './InvestigationsPanel';
 import SortableDocumentItem from './SortableDocumentItem';
 import AudioPlayerHeader from './AudioPlayerHeader';
@@ -67,7 +69,7 @@ export function DocumentDock() {
 		setQueue,
 		addToQueue,
 	} = useDocumentDock();
-	const [isCollapsed, setIsCollapsed] = useState(false);
+	const [isOpen, setIsOpen] = useState(false);
 	const [documentDetails, setDocumentDetails] = useState<Record<string, any>>(
 		{}
 	);
@@ -124,32 +126,6 @@ export function DocumentDock() {
 			console.error('Error loading saved playlists:', err);
 		}
 	}, []);
-
-	// Temporary function to add test documents for development
-	const addTestDocuments = () => {
-		const testDocs = [
-			{
-				id: 'NARA-JFK-2017-1',
-				title: 'CIA Document - Oswald Mexico City',
-				url: '/jfk-files/NARA-JFK-2017-1',
-				type: 'document' as const,
-			},
-			{
-				id: 'NARA-JFK-2017-2',
-				title: 'FBI Report - Ruby Investigation',
-				url: '/jfk-files/NARA-JFK-2017-2',
-				type: 'document' as const,
-			},
-			{
-				id: 'NARA-JFK-2017-3',
-				title: 'Warren Commission Testimony',
-				url: '/jfk-files/NARA-JFK-2017-3',
-				type: 'document' as const,
-			},
-		];
-
-		testDocs.forEach((doc) => addToQueue(doc));
-	};
 
 	// Helper functions for document display
 	const handleTabChange = (itemId: string, tab: string) => {
@@ -1271,28 +1247,10 @@ export function DocumentDock() {
 						(item: DocumentItem) => !existingIds.includes(item.id)
 					);
 
-					// Add them individually
-					{
-						playlist.length > 0 && (
-							<button
-								onClick={() => setShowPlaylist(true)}
-								className='px-4 py-2 bg-muted text-foreground rounded border border-border text-sm flex items-center cursor-pointer hover:bg-secondary transition-colors'
-							>
-								<Radio size={14} className='mr-1' />
-								<span>Investigations ({playlist.length})</span>
-							</button>
-						);
-					}
-					{
-						tokenCount > 0 && (
-							<div className='px-2 py-1 bg-muted rounded text-xs text-muted-foreground flex items-center gap-1'>
-								<span>Tokens:</span>
-								<span className='font-semibold'>
-									{tokenCount.toLocaleString()}
-								</span>
-							</div>
-						);
-					}
+					// Add them individually to the queue
+					itemsToAdd.forEach((item: DocumentItem) =>
+						addToQueue(item)
+					);
 				} catch (error) {
 					console.error(
 						'Error updating DocumentDock from localStorage:',
@@ -1317,1091 +1275,1133 @@ export function DocumentDock() {
 	return (
 		<>
 			{minimalDock}
-			{/* Main Document Dock */}
-			<div
-				className={`fixed bottom-0 left-0 ${
-					showPlaylist ? 'w-[calc(100%-300px)]' : 'w-full'
-				} ${
-					isCollapsed
-						? 'max-h-[50px]'
-						: podcastStatus === 'ready' || reportStatus === 'ready'
-						? 'max-h-[450px]'
-						: 'max-h-[400px]'
-				} z-9000 bg-background text-foreground border-t border-border shadow-lg flex flex-col`}
-			>
-				{/* Hidden audio element for playback */}
-				<audio
-					ref={audioRef}
-					src={
-						currentPlayer === 'podcast'
-							? podcastUrl || undefined
-							: reportUrl || undefined
-					}
-					onEnded={() => setIsPlaying(false)}
-					onPlay={() => setIsPlaying(true)}
-					onPause={() => setIsPlaying(false)}
-					style={{ display: 'none' }}
-				/>
-
-				{/* Header bar with audio player and controls */}
+			{/* Document Dock Sheet */}
+			<Sheet open={isOpen} onOpenChange={setIsOpen}>
+				{/* Always visible trigger/header bar */}
 				<div
-					className={`px-4 py-3 bg-background ${
-						isCollapsed ? '' : 'border-b border-border'
-					}`}
+					className={`sticky bottom-0 left-0 ${
+						showPlaylist ? 'w-[calc(100%-300px)]' : 'w-full'
+					} z-9000 bg-background text-foreground border-t border-border`}
 				>
-					<div className='flex justify-between items-center'>
-						<div className='flex items-center gap-3'>
-							<h3 className='font-semibold text-sm text-foreground m-0'>
-								Document Queue ({queue.length})
-							</h3>
-							<AudioPlayerHeader
-								isPlaying={isPlaying}
-								currentPlayer={currentPlayer}
-								currentPlaylistItem={currentPlaylistItem}
-								playlist={playlist}
-								podcastUrl={podcastUrl}
-								audioRef={audioRef}
-								reportUrl={reportUrl}
-								setShowPlaylist={setShowPlaylist}
-								setIsPlaying={setIsPlaying}
-								setCurrentPlayer={setCurrentPlayer}
-								togglePlayPause={togglePlayPause}
-							/>
-						</div>
-						<div className='flex gap-2'>
-							{playlist.length > 0 && (
-								<button
-									onClick={() =>
-										setShowPlaylist(!showPlaylist)
-									}
-									className={`px-2 py-1 rounded cursor-pointer border-0 flex items-center gap-1 text-xs ${
-										showPlaylist
-											? 'bg-secondary'
-											: 'bg-muted'
-									} text-foreground`}
-									aria-label={
-										showPlaylist
-											? 'Hide investigations'
-											: 'Show investigations'
-									}
-								>
-									<Radio size={14} />
-									<span>{playlist.length}</span>
-								</button>
-							)}
-							<button
-								onClick={() => setIsCollapsed(!isCollapsed)}
-								className='p-1 rounded cursor-pointer bg-transparent border-0 text-foreground hover:bg-muted'
-								aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-							>
-								{isCollapsed ? (
-									<ChevronUp size={16} />
-								) : (
-									<ChevronDown size={16} />
-								)}
-							</button>
-							<button
-								onClick={clearQueue}
-								className='p-1 rounded cursor-pointer bg-transparent border-0 text-foreground hover:bg-muted'
-								aria-label='Clear all'
-							>
-								<X size={16} />
-							</button>
-						</div>
-					</div>
-					{/* Controls row */}
-					{!isCollapsed && (
-						<div className='flex items-center gap-4 mt-3'>
-							{(podcastStatus as string) === 'generating' ? (
-								<div className='flex items-center gap-2 w-full'>
-									<Loader
-										size={16}
-										className='animate-spin'
+					{/* Hidden audio element for playback */}
+					<audio
+						ref={audioRef}
+						src={
+							currentPlayer === 'podcast'
+								? podcastUrl || undefined
+								: reportUrl || undefined
+						}
+						onEnded={() => setIsPlaying(false)}
+						onPlay={() => setIsPlaying(true)}
+						onPause={() => setIsPlaying(false)}
+						style={{ display: 'none' }}
+					/>
+
+					{/* Header bar with audio player and controls */}
+					<SheetTrigger asChild>
+						<div
+							className={`px-4 py-3 bg-background cursor-pointer hover:bg-muted/50 transition-colors`}
+						>
+							<div className='flex justify-between items-center'>
+								<div className='flex items-center gap-3'>
+									<h3 className='font-semibold text-sm text-foreground m-0'>
+										Document Queue ({queue.length})
+									</h3>
+									<AudioPlayerHeader
+										isPlaying={isPlaying}
+										currentPlayer={currentPlayer}
+										currentPlaylistItem={
+											currentPlaylistItem
+										}
+										playlist={playlist}
+										podcastUrl={podcastUrl}
+										audioRef={audioRef}
+										reportUrl={reportUrl}
+										setShowPlaylist={setShowPlaylist}
+										setIsPlaying={setIsPlaying}
+										setCurrentPlayer={setCurrentPlayer}
+										togglePlayPause={togglePlayPause}
 									/>
-									<div className='flex-1 text-sm'>
-										{podcastProgress ||
-											'Generating podcast...'}
-									</div>
 								</div>
-							) : (reportStatus as string) === 'generating' ? (
-								<div className='flex items-center gap-2 w-full'>
-									<Loader
-										size={16}
-										className='animate-spin'
-									/>
-									<div className='flex-1 text-sm'>
-										{reportProgress ||
-											'Generating investigative report...'}
-									</div>
-								</div>
-							) : (podcastStatus as string) === 'ready' &&
-							  podcastUrl &&
-							  currentPlayer === 'podcast' ? (
-								<div className='flex items-center gap-2 w-full'>
-									<button
-										onClick={() =>
-											togglePlayPause('podcast')
-										}
-										className='p-2 bg-primary text-primary-foreground rounded-full flex items-center justify-center border-0 cursor-pointer'
-									>
-										{isPlaying ? (
-											<Pause size={18} />
-										) : (
-											<Play size={18} />
-										)}
-									</button>
-									<div className='flex-1'>
-										<div className='font-medium text-sm'>
-											Generated Podcast
-										</div>
-										<audio
-											src={podcastUrl}
-											onEnded={() => setIsPlaying(false)}
-											onPlay={() => setIsPlaying(true)}
-											onPause={() => setIsPlaying(false)}
-											className='w-full mt-1'
-											controls
-										/>
-									</div>
-								</div>
-							) : (reportStatus as string) === 'ready' &&
-							  reportUrl &&
-							  currentPlayer === 'report' &&
-							  !showPlaylist ? (
-								<div className='flex items-center gap-2 w-full'>
-									<button
-										onClick={() =>
-											togglePlayPause('report')
-										}
-										className='p-2 bg-destructive text-white rounded-full flex items-center justify-center border-0 cursor-pointer'
-									>
-										{isPlaying ? (
-											<Pause size={18} />
-										) : (
-											<Play size={18} />
-										)}
-									</button>
-									<div className='flex-1'>
-										<div className='font-medium text-sm flex items-center justify-between'>
-											<span>Investigative Report</span>
-											<button
-												onClick={() =>
-													setShowPlaylist(true)
-												}
-												className='px-2 py-1 text-xs bg-muted border border-border rounded flex items-center gap-1 cursor-pointer'
-											>
-												<Radio size={12} />
-												<span>Investigations</span>
-											</button>
-										</div>
-										<audio
-											src={reportUrl}
-											onEnded={() => setIsPlaying(false)}
-											onPlay={() => setIsPlaying(true)}
-											onPause={() => setIsPlaying(false)}
-											className='w-full mt-1'
-											controls
-										/>
-									</div>
-								</div>
-							) : (
-								<>
-									<button
-										onClick={generatePodcast}
-										disabled={
-											(podcastStatus as string) ===
-												'generating' ||
-											(reportStatus as string) ===
-												'generating' ||
-											queue.length === 0
-										}
-										className='px-4 py-2 bg-primary text-primary-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
-									>
-										<Mic size={14} className='mr-1' />
-										<span>Podcast</span>
-									</button>
-									<button
-										onClick={generateInvestigativeReport}
-										disabled={
-											(reportStatus as string) ===
-												'generating' ||
-											(podcastStatus as string) ===
-												'generating' ||
-											queue.length === 0
-										}
-										className='px-4 py-2 bg-destructive text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
-									>
-										<FileSearch
-											size={14}
-											className='mr-1'
-										/>
-										<span>Investigative Report</span>
-									</button>
-									<button className='px-4 py-2 bg-accent text-accent-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2'>
-										<MessageSquare
-											size={14}
-											className='mr-1'
-										/>
-										<span>Dialog</span>
-									</button>
+								<div className='flex gap-2'>
 									{playlist.length > 0 && (
 										<button
 											onClick={() =>
-												setShowPlaylist(true)
+												setShowPlaylist(!showPlaylist)
 											}
-											className='px-4 py-2 bg-muted text-foreground border border-border rounded text-sm flex items-center cursor-pointer gap-2'
+											className={`px-2 py-1 rounded cursor-pointer border-0 flex items-center gap-1 text-xs ${
+												showPlaylist
+													? 'bg-secondary'
+													: 'bg-muted'
+											} text-foreground`}
+											aria-label={
+												showPlaylist
+													? 'Hide investigations'
+													: 'Show investigations'
+											}
 										>
-											<Radio size={14} className='mr-1' />
-											<span>
-												Investigations (
-												{playlist.length})
-											</span>
+											<Radio size={14} />
+											<span>{playlist.length}</span>
 										</button>
 									)}
-									{tokenCount > 0 && (
-										<div className='px-3 py-1 bg-muted rounded text-xs text-muted-foreground flex items-center gap-1'>
-											<span>Tokens:</span>
-											<span className='font-semibold'>
-												{tokenCount.toLocaleString()}
-											</span>
-										</div>
-									)}
-								</>
-							)}
+									<div className='flex items-center gap-1 text-xs text-muted-foreground'>
+										<ChevronUp size={16} />
+										<span>Click to view</span>
+									</div>
+								</div>
+							</div>
 						</div>
-					)}
-				</div>
+					</SheetTrigger>
 
-				{/* Rest of the DocumentDock content */}
-				{!isCollapsed && (
-					<>
-						{/* Document queue */}
-						<DndContext
-							sensors={sensors}
-							collisionDetection={closestCenter}
-							onDragStart={handleDragStart}
-							onDragEnd={handleDragEnd}
-						>
-							<div
-								className={`p-2 flex-1 flex flex-row overflow-x-auto whitespace-nowrap bg-background ${
-									podcastStatus === 'ready' ||
-									reportStatus === 'ready'
-										? 'h-[calc(450px-110px)]'
-										: 'h-[calc(400px-110px)]'
-								}`}
-							>
-								{/* TODO: Make the document item its own component meaning move the actual thing into the document item */}
-								<SortableContext
-									items={queue.map((item) => item.id)}
-									strategy={verticalListSortingStrategy}
-								>
-									{queue.map((item, index) => {
-										const docDetails =
-											documentDetails[item.id];
-										const currentTab =
-											activeTab[item.id] || 'summary';
-										const pageNum =
-											currentPage[item.id] || 1;
-										const pageCount =
-											docDetails?.pageCount || 1;
-										const expandedSec =
-											expandedSection[item.id];
-										const pageKey = `${item.id}-p${pageNum}`;
-										const currentPageData =
-											pageContent[pageKey];
-										const isLoadingPageData =
-											pageContentLoading[pageKey];
-
-										return (
-											<SortableDocumentItem
-												key={item.id}
-												item={item}
-												index={index}
-												isDragging={
-													activeId === item.id
+					{/* Sheet Content - Document Items */}
+					<SheetContent side='bottom' className='h-[60vh] p-0'>
+						<ScrollArea className='h-full'>
+							{/* Generation Controls - moved inside sheet */}
+							<div className='p-4 border-b border-border bg-muted/30'>
+								<div className='flex items-center gap-4'>
+									{(podcastStatus as string) ===
+									'generating' ? (
+										<div className='flex items-center gap-2 w-full'>
+											<Loader
+												size={16}
+												className='animate-spin'
+											/>
+											<div className='flex-1 text-sm'>
+												{podcastProgress ||
+													'Generating podcast...'}
+											</div>
+										</div>
+									) : (reportStatus as string) ===
+									  'generating' ? (
+										<div className='flex items-center gap-2 w-full'>
+											<Loader
+												size={16}
+												className='animate-spin'
+											/>
+											<div className='flex-1 text-sm'>
+												{reportProgress ||
+													'Generating investigative report...'}
+											</div>
+										</div>
+									) : (podcastStatus as string) === 'ready' &&
+									  podcastUrl &&
+									  currentPlayer === 'podcast' ? (
+										<div className='flex items-center gap-2 w-full'>
+											<button
+												onClick={() =>
+													togglePlayPause('podcast')
 												}
+												className='p-2 bg-primary text-primary-foreground rounded-full flex items-center justify-center border-0 cursor-pointer'
 											>
-												{/* Header with ID and controls */}
-												<div className='flex justify-between items-center p-2 bg-muted border-b border-border'>
-													<div className='flex items-center'>
-														<div className='cursor-move mr-2'>
-															<GripVertical
-																size={14}
-															/>
-														</div>
-														<a
-															href={item.url}
-															className='font-medium text-primary no-underline text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[130px] block'
-															title={item.title}
-														>
-															{item.id}
-														</a>
-													</div>
-													<div className='flex items-center gap-1'>
-														{pageCount > 1 && (
-															<div className='flex items-center gap-0.5 mr-2'>
-																<button
-																	onClick={() =>
-																		handlePageChange(
-																			item.id,
-																			Math.max(
-																				1,
-																				pageNum -
-																					1
-																			)
-																		)
-																	}
-																	disabled={
-																		pageNum <=
-																		1
-																	}
-																	style={{
-																		border: 'none',
-																		background:
-																			'none',
-																		cursor:
-																			pageNum <=
-																			1
-																				? 'default'
-																				: 'pointer',
-																		opacity:
-																			pageNum <=
-																			1
-																				? 0.5
-																				: 1,
-																		padding:
-																			'2px',
-																	}}
-																>
-																	<ChevronLeft
-																		size={
-																			12
-																		}
-																	/>
-																</button>
-																<span
-																	style={{
-																		fontWeight: 500,
-																		fontSize:
-																			'0.7rem',
-																	}}
-																>
-																	{pageNum}/
-																	{pageCount}
-																</span>
-																<button
-																	onClick={() =>
-																		handlePageChange(
-																			item.id,
-																			Math.min(
-																				pageCount,
-																				pageNum +
-																					1
-																			)
-																		)
-																	}
-																	disabled={
-																		pageNum >=
-																		pageCount
-																	}
-																	style={{
-																		border: 'none',
-																		background:
-																			'none',
-																		cursor:
-																			pageNum >=
-																			pageCount
-																				? 'default'
-																				: 'pointer',
-																		opacity:
-																			pageNum >=
-																			pageCount
-																				? 0.5
-																				: 1,
-																		padding:
-																			'2px',
-																	}}
-																>
-																	<ChevronRight
-																		size={
-																			12
-																		}
-																	/>
-																</button>
-															</div>
-														)}
-														<button
-															onClick={() =>
-																removeFromQueue(
-																	item.id
-																)
-															}
-															style={{
-																padding: '4px',
-																borderRadius:
-																	'4px',
-																backgroundColor:
-																	'transparent',
-																border: 'none',
-																cursor: 'pointer',
-															}}
-															aria-label='Remove item'
-														>
-															<X size={12} />
-														</button>
-													</div>
+												{isPlaying ? (
+													<Pause size={18} />
+												) : (
+													<Play size={18} />
+												)}
+											</button>
+											<div className='flex-1'>
+												<div className='font-medium text-sm'>
+													Generated Podcast
 												</div>
-
-												{/* Tabs */}
-												<div className='flex border-b border-border px-2'>
+												<audio
+													src={podcastUrl}
+													onEnded={() =>
+														setIsPlaying(false)
+													}
+													onPlay={() =>
+														setIsPlaying(true)
+													}
+													onPause={() =>
+														setIsPlaying(false)
+													}
+													className='w-full mt-1'
+													controls
+												/>
+											</div>
+										</div>
+									) : (reportStatus as string) === 'ready' &&
+									  reportUrl &&
+									  currentPlayer === 'report' &&
+									  !showPlaylist ? (
+										<div className='flex items-center gap-2 w-full'>
+											<button
+												onClick={() =>
+													togglePlayPause('report')
+												}
+												className='p-2 bg-destructive text-white rounded-full flex items-center justify-center border-0 cursor-pointer'
+											>
+												{isPlaying ? (
+													<Pause size={18} />
+												) : (
+													<Play size={18} />
+												)}
+											</button>
+											<div className='flex-1'>
+												<div className='font-medium text-sm flex items-center justify-between'>
+													<span>
+														Investigative Report
+													</span>
 													<button
 														onClick={() =>
-															handleTabChange(
-																item.id,
-																'summary'
+															setShowPlaylist(
+																true
 															)
 														}
-														className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
-															currentTab ===
-															'summary'
-																? 'border-primary text-primary'
-																: 'border-transparent text-muted-foreground hover:text-primary'
-														}`}
+														className='px-2 py-1 text-xs bg-muted border border-border rounded flex items-center gap-1 cursor-pointer'
 													>
-														Doc
-													</button>
-													<button
-														onClick={() =>
-															handleTabChange(
-																item.id,
-																'page'
-															)
-														}
-														className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
-															currentTab ===
-															'page'
-																? 'border-primary text-primary'
-																: 'border-transparent text-muted-foreground hover:text-primary'
-														}`}
-													>
-														Page
-													</button>
-													<button
-														onClick={() =>
-															handleTabChange(
-																item.id,
-																'entities'
-															)
-														}
-														className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
-															currentTab ===
-															'entities'
-																? 'border-primary text-primary'
-																: 'border-transparent text-muted-foreground hover:text-primary'
-														}`}
-													>
-														Entities
-													</button>
-													<button
-														onClick={() =>
-															handleTabChange(
-																item.id,
-																'image'
-															)
-														}
-														className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
-															currentTab ===
-															'image'
-																? 'border-primary text-primary'
-																: 'border-transparent text-muted-foreground hover:text-primary'
-														}`}
-													>
-														Image
-													</button>
-													<button
-														onClick={() =>
-															handleTabChange(
-																item.id,
-																'text'
-															)
-														}
-														className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
-															currentTab ===
-															'text'
-																? 'border-primary text-primary'
-																: 'border-transparent text-muted-foreground hover:text-primary'
-														}`}
-													>
-														Text
+														<Radio size={12} />
+														<span>
+															Investigations
+														</span>
 													</button>
 												</div>
-
-												{/* Tab content */}
-												<div className='h-[260px] overflow-auto p-2 bg-background'>
-													{/* Document summary tab */}
-													{currentTab ===
-														'summary' && (
-														<div
-															style={{
-																fontSize:
-																	'0.75rem',
-																color: '#374151',
-																height: '100%',
-																overflowY:
-																	'auto',
-																whiteSpace:
-																	'normal',
-																wordBreak:
-																	'break-word',
-															}}
-														>
-															{docDetails?.summary ||
-																'Loading summary...'}
-														</div>
-													)}
-
-													{/* Page summary tab - Now properly shows the page-specific summary */}
-													{currentTab === 'page' && (
-														<div
-															style={{
-																fontSize:
-																	'0.75rem',
-																color: '#374151',
-																height: '100%',
-																overflowY:
-																	'auto',
-																whiteSpace:
-																	'normal',
-																wordBreak:
-																	'break-word',
-															}}
-														>
-															<div
-																style={{
-																	marginBottom:
-																		'4px',
-																	fontWeight: 500,
-																}}
-															>
-																Page {pageNum}{' '}
-																Summary
-															</div>
-															{isLoadingPageData ? (
-																<div>
-																	Loading page
-																	data...
-																</div>
-															) : currentPageData?.summary ? (
-																<div>
-																	{
-																		currentPageData.summary
-																	}
-																</div>
-															) : docDetails &&
-															  docDetails.pages &&
-															  docDetails.pages[
-																	pageNum - 1
-															  ]?.summary ? (
-																<div>
-																	{
-																		docDetails
-																			.pages[
-																			pageNum -
-																				1
-																		]
-																			.summary
-																	}
-																</div>
-															) : (
-																<div>
-																	No page
-																	summary
-																	available.
-																</div>
-															)}
-														</div>
-													)}
-
-													{/* Entities tab - Now showing complete lists with proper scrolling */}
-													{currentTab ===
-														'entities' && (
-														<div
-															style={{
-																fontSize:
-																	'0.75rem',
-																color: '#374151',
-																height: '100%',
-																overflowY:
-																	'auto',
-															}}
-														>
-															{docDetails && (
-																<>
-																	<div
-																		style={{
-																			marginBottom:
-																				'8px',
-																		}}
-																	>
-																		<button
-																			onClick={() =>
-																				toggleExpandedSection(
-																					item.id,
-																					'people'
-																				)
-																			}
-																			style={{
-																				display:
-																					'flex',
-																				alignItems:
-																					'center',
-																				gap: '4px',
-																				fontSize:
-																					'0.75rem',
-																				fontWeight: 500,
-																				padding:
-																					'2px 4px',
-																				backgroundColor:
-																					'transparent',
-																				border: 'none',
-																				cursor: 'pointer',
-																				color: '#4b5563',
-																				width: '100%',
-																				justifyContent:
-																					'space-between',
-																			}}
-																		>
-																			<div
-																				style={{
-																					display:
-																						'flex',
-																					alignItems:
-																						'center',
-																					gap: '4px',
-																				}}
-																			>
-																				<User
-																					size={
-																						12
-																					}
-																				/>
-																				<span>
-																					People
-																					(
-																					{docDetails
-																						.allNames
-																						?.length ||
-																						0}
-
-																					)
-																				</span>
-																			</div>
-																			{expandedSec ===
-																			'people' ? (
-																				<ChevronUp
-																					size={
-																						10
-																					}
-																				/>
-																			) : (
-																				<ChevronDown
-																					size={
-																						10
-																					}
-																				/>
-																			)}
-																		</button>
-																		{expandedSec ===
-																			'people' &&
-																			docDetails.allNames && (
-																				<div
-																					style={{
-																						paddingLeft:
-																							'16px',
-																						fontSize:
-																							'0.7rem',
-																						marginTop:
-																							'2px',
-																						maxHeight:
-																							'120px',
-																						overflowY:
-																							'auto',
-																					}}
-																				>
-																					{docDetails.allNames.map(
-																						(
-																							name: string,
-																							idx: number
-																						) => (
-																							<div
-																								key={`name-${idx}`}
-																								style={{
-																									marginBottom:
-																										'2px',
-																									whiteSpace:
-																										'normal',
-																									wordBreak:
-																										'break-word',
-																								}}
-																							>
-																								{
-																									name
-																								}
-																							</div>
-																						)
-																					)}
-																				</div>
-																			)}
-																	</div>
-																	<div
-																		style={{
-																			marginBottom:
-																				'8px',
-																		}}
-																	>
-																		<button
-																			onClick={() =>
-																				toggleExpandedSection(
-																					item.id,
-																					'places'
-																				)
-																			}
-																			style={{
-																				display:
-																					'flex',
-																				alignItems:
-																					'center',
-																				gap: '4px',
-																				fontSize:
-																					'0.75rem',
-																				fontWeight: 500,
-																				padding:
-																					'2px 4px',
-																				backgroundColor:
-																					'transparent',
-																				border: 'none',
-																				cursor: 'pointer',
-																				color: '#4b5563',
-																				width: '100%',
-																				justifyContent:
-																					'space-between',
-																			}}
-																		>
-																			<div
-																				style={{
-																					display:
-																						'flex',
-																					alignItems:
-																						'center',
-																					gap: '4px',
-																				}}
-																			>
-																				<MapPin
-																					size={
-																						12
-																					}
-																				/>
-																				<span>
-																					Places
-																					(
-																					{docDetails
-																						.allPlaces
-																						?.length ||
-																						0}
-
-																					)
-																				</span>
-																			</div>
-																			{expandedSec ===
-																			'places' ? (
-																				<ChevronUp
-																					size={
-																						10
-																					}
-																				/>
-																			) : (
-																				<ChevronDown
-																					size={
-																						10
-																					}
-																				/>
-																			)}
-																		</button>
-																		{expandedSec ===
-																			'places' &&
-																			docDetails.allPlaces && (
-																				<div
-																					style={{
-																						paddingLeft:
-																							'16px',
-																						fontSize:
-																							'0.7rem',
-																						marginTop:
-																							'2px',
-																						maxHeight:
-																							'120px',
-																						overflowY:
-																							'auto',
-																					}}
-																				>
-																					{docDetails.allPlaces.map(
-																						(
-																							place: string,
-																							idx: number
-																						) => (
-																							<div
-																								key={`place-${idx}`}
-																								style={{
-																									marginBottom:
-																										'2px',
-																									whiteSpace:
-																										'normal',
-																									wordBreak:
-																										'break-word',
-																								}}
-																							>
-																								{
-																									place
-																								}
-																							</div>
-																						)
-																					)}
-																				</div>
-																			)}
-																	</div>
-																	<div>
-																		<button
-																			onClick={() =>
-																				toggleExpandedSection(
-																					item.id,
-																					'objects'
-																				)
-																			}
-																			style={{
-																				display:
-																					'flex',
-																				alignItems:
-																					'center',
-																				gap: '4px',
-																				fontSize:
-																					'0.75rem',
-																				fontWeight: 500,
-																				padding:
-																					'2px 4px',
-																				backgroundColor:
-																					'transparent',
-																				border: 'none',
-																				cursor: 'pointer',
-																				color: '#4b5563',
-																				width: '100%',
-																				justifyContent:
-																					'space-between',
-																			}}
-																		>
-																			<div
-																				style={{
-																					display:
-																						'flex',
-																					alignItems:
-																						'center',
-																					gap: '4px',
-																				}}
-																			>
-																				<Package
-																					size={
-																						12
-																					}
-																				/>
-																				<span>
-																					Objects
-																					(
-																					{docDetails
-																						.allObjects
-																						?.length ||
-																						0}
-
-																					)
-																				</span>
-																			</div>
-																			{expandedSec ===
-																			'objects' ? (
-																				<ChevronUp
-																					size={
-																						10
-																					}
-																				/>
-																			) : (
-																				<ChevronDown
-																					size={
-																						10
-																					}
-																				/>
-																			)}
-																		</button>
-																		{expandedSec ===
-																			'objects' &&
-																			docDetails.allObjects && (
-																				<div
-																					style={{
-																						paddingLeft:
-																							'16px',
-																						fontSize:
-																							'0.7rem',
-																						marginTop:
-																							'2px',
-																						maxHeight:
-																							'120px',
-																						overflowY:
-																							'auto',
-																					}}
-																				>
-																					{docDetails.allObjects.map(
-																						(
-																							object: string,
-																							idx: number
-																						) => (
-																							<div
-																								key={`object-${idx}`}
-																								style={{
-																									marginBottom:
-																										'2px',
-																									whiteSpace:
-																										'normal',
-																									wordBreak:
-																										'break-word',
-																								}}
-																							>
-																								{
-																									object
-																								}
-																							</div>
-																						)
-																					)}
-																				</div>
-																			)}
-																	</div>
-																</>
-															)}
-														</div>
-													)}
-
-													{/* Image tab */}
-													{currentTab === 'image' && (
-														<div
-															style={{
-																display: 'flex',
-																flexDirection:
-																	'column',
-																height: '100%',
-																justifyContent:
-																	'center',
-																alignItems:
-																	'center',
-															}}
-														>
-															{docDetails ? (
-																<img
-																	src={getPageImageUrl(
-																		item.id,
-																		pageNum
-																	)}
-																	alt={`Page ${pageNum}`}
-																	style={{
-																		maxWidth:
-																			'100%',
-																		maxHeight:
-																			'100%',
-																		objectFit:
-																			'contain',
-																		display:
-																			'block',
-																	}}
-																/>
-															) : (
-																<div
-																	style={{
-																		fontSize:
-																			'0.75rem',
-																		color: '#6b7280',
-																	}}
-																>
-																	Loading
-																	image...
-																</div>
-															)}
-														</div>
-													)}
-
-													{/* Text tab */}
-													{currentTab === 'text' && (
-														<div
-															style={{
-																fontSize:
-																	'0.75rem',
-																color: '#374151',
-																height: '100%',
-																overflowY:
-																	'auto',
-																fontFamily:
-																	'monospace',
-																whiteSpace:
-																	'pre-wrap',
-																wordBreak:
-																	'break-word',
-															}}
-														>
-															{docDetails?.fullText
-																? docDetails.fullText.substring(
-																		0,
-																		500
-																  ) + '...'
-																: 'Text not available.'}
-														</div>
-													)}
+												<audio
+													src={reportUrl}
+													onEnded={() =>
+														setIsPlaying(false)
+													}
+													onPlay={() =>
+														setIsPlaying(true)
+													}
+													onPause={() =>
+														setIsPlaying(false)
+													}
+													className='w-full mt-1'
+													controls
+												/>
+											</div>
+										</div>
+									) : (
+										<>
+											<button
+												onClick={generatePodcast}
+												disabled={
+													(podcastStatus as string) ===
+														'generating' ||
+													(reportStatus as string) ===
+														'generating' ||
+													queue.length === 0
+												}
+												className='px-4 py-2 bg-primary text-primary-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
+											>
+												<Mic
+													size={14}
+													className='mr-1'
+												/>
+												<span>Podcast</span>
+											</button>
+											<button
+												onClick={
+													generateInvestigativeReport
+												}
+												disabled={
+													(reportStatus as string) ===
+														'generating' ||
+													(podcastStatus as string) ===
+														'generating' ||
+													queue.length === 0
+												}
+												className='px-4 py-2 bg-destructive text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
+											>
+												<FileSearch
+													size={14}
+													className='mr-1'
+												/>
+												<span>
+													Investigative Report
+												</span>
+											</button>
+											<button className='px-4 py-2 bg-accent text-accent-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2'>
+												<MessageSquare
+													size={14}
+													className='mr-1'
+												/>
+												<span>Dialog</span>
+											</button>
+											{playlist.length > 0 && (
+												<button
+													onClick={() =>
+														setShowPlaylist(true)
+													}
+													className='px-4 py-2 bg-muted text-foreground border border-border rounded text-sm flex items-center cursor-pointer gap-2'
+												>
+													<Radio
+														size={14}
+														className='mr-1'
+													/>
+													<span>
+														Investigations (
+														{playlist.length})
+													</span>
+												</button>
+											)}
+											{tokenCount > 0 && (
+												<div className='px-3 py-1 bg-muted rounded text-xs text-muted-foreground flex items-center gap-1'>
+													<span>Tokens:</span>
+													<span className='font-semibold'>
+														{tokenCount.toLocaleString()}
+													</span>
 												</div>
-											</SortableDocumentItem>
-										);
-									})}
-								</SortableContext>
+											)}
+										</>
+									)}
+								</div>
 							</div>
 
-							<DragOverlay>
-								{activeId ? (
-									<div
-										style={{
-											display: 'inline-block',
-											width: '240px',
-											height: '320px',
-											backgroundColor: 'white',
-											border: '1px solid #e5e7eb',
-											borderRadius: '8px',
-											boxShadow:
-												'0 4px 12px rgba(0, 0, 0, 0.15)',
-											opacity: 0.8,
-											transform: 'rotate(5deg)',
-										}}
+							{/* Document queue */}
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragStart={handleDragStart}
+								onDragEnd={handleDragEnd}
+							>
+								<div className='p-4 flex flex-row overflow-x-auto whitespace-nowrap bg-background'>
+									<SortableContext
+										items={queue.map((item) => item.id)}
+										strategy={verticalListSortingStrategy}
 									>
+										{queue.map((item, index) => {
+											const docDetails =
+												documentDetails[item.id];
+											const currentTab =
+												activeTab[item.id] || 'summary';
+											const pageNum =
+												currentPage[item.id] || 1;
+											const pageCount =
+												docDetails?.pageCount || 1;
+											const expandedSec =
+												expandedSection[item.id];
+											const pageKey = `${item.id}-p${pageNum}`;
+											const currentPageData =
+												pageContent[pageKey];
+											const isLoadingPageData =
+												pageContentLoading[pageKey];
+
+											return (
+												<SortableDocumentItem
+													key={item.id}
+													item={item}
+													index={index}
+													isDragging={
+														activeId === item.id
+													}
+												>
+													{(dragListeners) => (
+														<>
+															{/* Header with ID and controls */}
+															<div className='flex justify-between items-center p-2 bg-muted border-b border-border'>
+																<div className='flex items-center'>
+																	<div
+																		className='cursor-move mr-2'
+																		{...dragListeners}
+																	>
+																		<GripVertical
+																			size={
+																				14
+																			}
+																		/>
+																	</div>
+																	<a
+																		href={
+																			item.url
+																		}
+																		className='font-medium text-primary no-underline text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[130px] block'
+																		title={
+																			item.title
+																		}
+																	>
+																		{item.title ||
+																			item.id}
+																	</a>
+																</div>
+																<div className='flex items-center gap-1'>
+																	<button
+																		onClick={(
+																			e
+																		) => {
+																			e.stopPropagation();
+																			removeFromQueue(
+																				item.id
+																			);
+																		}}
+																		className='p-1 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors'
+																		title='Remove from queue'
+																	>
+																		<X
+																			size={
+																				14
+																			}
+																		/>
+																	</button>
+																	{pageCount >
+																		1 && (
+																		<div className='flex items-center gap-0.5 mr-2'>
+																			<button
+																				onClick={() =>
+																					handlePageChange(
+																						item.id,
+																						Math.max(
+																							1,
+																							pageNum -
+																								1
+																						)
+																					)
+																				}
+																				disabled={
+																					pageNum <=
+																					1
+																				}
+																				style={{
+																					border: 'none',
+																					background:
+																						'none',
+																					cursor:
+																						pageNum <=
+																						1
+																							? 'default'
+																							: 'pointer',
+																					opacity:
+																						pageNum <=
+																						1
+																							? 0.5
+																							: 1,
+																					padding:
+																						'2px',
+																				}}
+																			>
+																				<ChevronLeft
+																					size={
+																						12
+																					}
+																				/>
+																			</button>
+																			<span
+																				style={{
+																					fontWeight: 500,
+																					fontSize:
+																						'0.7rem',
+																				}}
+																			>
+																				{
+																					pageNum
+																				}
+
+																				/
+																				{
+																					pageCount
+																				}
+																			</span>
+																			<button
+																				onClick={() =>
+																					handlePageChange(
+																						item.id,
+																						Math.min(
+																							pageCount,
+																							pageNum +
+																								1
+																						)
+																					)
+																				}
+																				disabled={
+																					pageNum >=
+																					pageCount
+																				}
+																				style={{
+																					border: 'none',
+																					background:
+																						'none',
+																					cursor:
+																						pageNum >=
+																						pageCount
+																							? 'default'
+																							: 'pointer',
+																					opacity:
+																						pageNum >=
+																						pageCount
+																							? 0.5
+																							: 1,
+																					padding:
+																						'2px',
+																				}}
+																			>
+																				<ChevronRight
+																					size={
+																						12
+																					}
+																				/>
+																			</button>
+																		</div>
+																	)}
+																</div>
+															</div>
+
+															{/* Tabs */}
+															<div className='flex border-b border-border px-2'>
+																<button
+																	onClick={() =>
+																		handleTabChange(
+																			item.id,
+																			'summary'
+																		)
+																	}
+																	className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
+																		currentTab ===
+																		'summary'
+																			? 'border-primary text-primary'
+																			: 'border-transparent text-muted-foreground hover:text-primary'
+																	}`}
+																>
+																	Doc
+																</button>
+																<button
+																	onClick={() =>
+																		handleTabChange(
+																			item.id,
+																			'page'
+																		)
+																	}
+																	className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
+																		currentTab ===
+																		'page'
+																			? 'border-primary text-primary'
+																			: 'border-transparent text-muted-foreground hover:text-primary'
+																	}`}
+																>
+																	Page
+																</button>
+																<button
+																	onClick={() =>
+																		handleTabChange(
+																			item.id,
+																			'entities'
+																		)
+																	}
+																	className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
+																		currentTab ===
+																		'entities'
+																			? 'border-primary text-primary'
+																			: 'border-transparent text-muted-foreground hover:text-primary'
+																	}`}
+																>
+																	Entities
+																</button>
+																<button
+																	onClick={() =>
+																		handleTabChange(
+																			item.id,
+																			'image'
+																		)
+																	}
+																	className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
+																		currentTab ===
+																		'image'
+																			? 'border-primary text-primary'
+																			: 'border-transparent text-muted-foreground hover:text-primary'
+																	}`}
+																>
+																	Image
+																</button>
+																<button
+																	onClick={() =>
+																		handleTabChange(
+																			item.id,
+																			'text'
+																		)
+																	}
+																	className={`px-2 py-1 text-xs border-b-2 transition-colors duration-150 focus:outline-none ${
+																		currentTab ===
+																		'text'
+																			? 'border-primary text-primary'
+																			: 'border-transparent text-muted-foreground hover:text-primary'
+																	}`}
+																>
+																	Text
+																</button>
+															</div>
+
+															{/* Tab content */}
+															<div className='h-[260px] overflow-auto p-2 bg-background'>
+																{/* Document summary tab */}
+																{currentTab ===
+																	'summary' && (
+																	<div
+																		style={{
+																			fontSize:
+																				'0.75rem',
+																			color: '#374151',
+																			height: '100%',
+																			overflowY:
+																				'auto',
+																			whiteSpace:
+																				'normal',
+																			wordBreak:
+																				'break-word',
+																		}}
+																	>
+																		{docDetails?.summary ||
+																			'Loading summary...'}
+																	</div>
+																)}
+
+																{/* Page summary tab - Now properly shows the page-specific summary */}
+																{currentTab ===
+																	'page' && (
+																	<div
+																		style={{
+																			fontSize:
+																				'0.75rem',
+																			color: '#374151',
+																			height: '100%',
+																			overflowY:
+																				'auto',
+																			whiteSpace:
+																				'normal',
+																			wordBreak:
+																				'break-word',
+																		}}
+																	>
+																		<div
+																			style={{
+																				marginBottom:
+																					'4px',
+																				fontWeight: 500,
+																			}}
+																		>
+																			Page{' '}
+																			{
+																				pageNum
+																			}{' '}
+																			Summary
+																		</div>
+																		{isLoadingPageData ? (
+																			<div>
+																				Loading
+																				page
+																				data...
+																			</div>
+																		) : currentPageData?.summary ? (
+																			<div>
+																				{
+																					currentPageData.summary
+																				}
+																			</div>
+																		) : docDetails &&
+																		  docDetails.pages &&
+																		  docDetails
+																				.pages[
+																				pageNum -
+																					1
+																		  ]
+																				?.summary ? (
+																			<div>
+																				{
+																					docDetails
+																						.pages[
+																						pageNum -
+																							1
+																					]
+																						.summary
+																				}
+																			</div>
+																		) : (
+																			<div>
+																				No
+																				page
+																				summary
+																				available.
+																			</div>
+																		)}
+																	</div>
+																)}
+
+																{/* Entities tab - Now showing complete lists with proper scrolling */}
+																{currentTab ===
+																	'entities' && (
+																	<div
+																		style={{
+																			fontSize:
+																				'0.75rem',
+																			color: '#374151',
+																			height: '100%',
+																			overflowY:
+																				'auto',
+																		}}
+																	>
+																		{docDetails && (
+																			<>
+																				<div
+																					style={{
+																						marginBottom:
+																							'8px',
+																					}}
+																				>
+																					<button
+																						onClick={() =>
+																							toggleExpandedSection(
+																								item.id,
+																								'people'
+																							)
+																						}
+																						style={{
+																							display:
+																								'flex',
+																							alignItems:
+																								'center',
+																							gap: '4px',
+																							fontSize:
+																								'0.75rem',
+																							fontWeight: 500,
+																							padding:
+																								'2px 4px',
+																							backgroundColor:
+																								'transparent',
+																							border: 'none',
+																							cursor: 'pointer',
+																							color: '#4b5563',
+																							width: '100%',
+																							justifyContent:
+																								'space-between',
+																						}}
+																					>
+																						<div
+																							style={{
+																								display:
+																									'flex',
+																								alignItems:
+																									'center',
+																								gap: '4px',
+																							}}
+																						>
+																							<User
+																								size={
+																									12
+																								}
+																							/>
+																							<span>
+																								People
+																								(
+																								{docDetails
+																									.allNames
+																									?.length ||
+																									0}
+
+																								)
+																							</span>
+																						</div>
+																						{expandedSec ===
+																						'people' ? (
+																							<ChevronUp
+																								size={
+																									10
+																								}
+																							/>
+																						) : (
+																							<ChevronDown
+																								size={
+																									10
+																								}
+																							/>
+																						)}
+																					</button>
+																					{expandedSec ===
+																						'people' &&
+																						docDetails.allNames && (
+																							<div
+																								style={{
+																									paddingLeft:
+																										'16px',
+																									fontSize:
+																										'0.7rem',
+																									marginTop:
+																										'2px',
+																									maxHeight:
+																										'120px',
+																									overflowY:
+																										'auto',
+																								}}
+																							>
+																								{docDetails.allNames.map(
+																									(
+																										name: string,
+																										idx: number
+																									) => (
+																										<div
+																											key={`name-${idx}`}
+																											style={{
+																												marginBottom:
+																													'2px',
+																												whiteSpace:
+																													'normal',
+																												wordBreak:
+																													'break-word',
+																											}}
+																										>
+																											{
+																												name
+																											}
+																										</div>
+																									)
+																								)}
+																							</div>
+																						)}
+																				</div>
+																				<div
+																					style={{
+																						marginBottom:
+																							'8px',
+																					}}
+																				>
+																					<button
+																						onClick={() =>
+																							toggleExpandedSection(
+																								item.id,
+																								'places'
+																							)
+																						}
+																						style={{
+																							display:
+																								'flex',
+																							alignItems:
+																								'center',
+																							gap: '4px',
+																							fontSize:
+																								'0.75rem',
+																							fontWeight: 500,
+																							padding:
+																								'2px 4px',
+																							backgroundColor:
+																								'transparent',
+																							border: 'none',
+																							cursor: 'pointer',
+																							color: '#4b5563',
+																							width: '100%',
+																							justifyContent:
+																								'space-between',
+																						}}
+																					>
+																						<div
+																							style={{
+																								display:
+																									'flex',
+																								alignItems:
+																									'center',
+																								gap: '4px',
+																							}}
+																						>
+																							<MapPin
+																								size={
+																									12
+																								}
+																							/>
+																							<span>
+																								Places
+																								(
+																								{docDetails
+																									.allPlaces
+																									?.length ||
+																									0}
+
+																								)
+																							</span>
+																						</div>
+																						{expandedSec ===
+																						'places' ? (
+																							<ChevronUp
+																								size={
+																									10
+																								}
+																							/>
+																						) : (
+																							<ChevronDown
+																								size={
+																									10
+																								}
+																							/>
+																						)}
+																					</button>
+																					{expandedSec ===
+																						'places' &&
+																						docDetails.allPlaces && (
+																							<div
+																								style={{
+																									paddingLeft:
+																										'16px',
+																									fontSize:
+																										'0.7rem',
+																									marginTop:
+																										'2px',
+																									maxHeight:
+																										'120px',
+																									overflowY:
+																										'auto',
+																								}}
+																							>
+																								{docDetails.allPlaces.map(
+																									(
+																										place: string,
+																										idx: number
+																									) => (
+																										<div
+																											key={`place-${idx}`}
+																											style={{
+																												marginBottom:
+																													'2px',
+																												whiteSpace:
+																													'normal',
+																												wordBreak:
+																													'break-word',
+																											}}
+																										>
+																											{
+																												place
+																											}
+																										</div>
+																									)
+																								)}
+																							</div>
+																						)}
+																				</div>
+																				<div>
+																					<button
+																						onClick={() =>
+																							toggleExpandedSection(
+																								item.id,
+																								'objects'
+																							)
+																						}
+																						style={{
+																							display:
+																								'flex',
+																							alignItems:
+																								'center',
+																							gap: '4px',
+																							fontSize:
+																								'0.75rem',
+																							fontWeight: 500,
+																							padding:
+																								'2px 4px',
+																							backgroundColor:
+																								'transparent',
+																							border: 'none',
+																							cursor: 'pointer',
+																							color: '#4b5563',
+																							width: '100%',
+																							justifyContent:
+																								'space-between',
+																						}}
+																					>
+																						<div
+																							style={{
+																								display:
+																									'flex',
+																								alignItems:
+																									'center',
+																								gap: '4px',
+																							}}
+																						>
+																							<Package
+																								size={
+																									12
+																								}
+																							/>
+																							<span>
+																								Objects
+																								(
+																								{docDetails
+																									.allObjects
+																									?.length ||
+																									0}
+
+																								)
+																							</span>
+																						</div>
+																						{expandedSec ===
+																						'objects' ? (
+																							<ChevronUp
+																								size={
+																									10
+																								}
+																							/>
+																						) : (
+																							<ChevronDown
+																								size={
+																									10
+																								}
+																							/>
+																						)}
+																					</button>
+																					{expandedSec ===
+																						'objects' &&
+																						docDetails.allObjects && (
+																							<div
+																								style={{
+																									paddingLeft:
+																										'16px',
+																									fontSize:
+																										'0.7rem',
+																									marginTop:
+																										'2px',
+																									maxHeight:
+																										'120px',
+																									overflowY:
+																										'auto',
+																								}}
+																							>
+																								{docDetails.allObjects.map(
+																									(
+																										object: string,
+																										idx: number
+																									) => (
+																										<div
+																											key={`object-${idx}`}
+																											style={{
+																												marginBottom:
+																													'2px',
+																												whiteSpace:
+																													'normal',
+																												wordBreak:
+																													'break-word',
+																											}}
+																										>
+																											{
+																												object
+																											}
+																										</div>
+																									)
+																								)}
+																							</div>
+																						)}
+																				</div>
+																			</>
+																		)}
+																	</div>
+																)}
+
+																{/* Image tab */}
+																{currentTab ===
+																	'image' && (
+																	<div
+																		style={{
+																			display:
+																				'flex',
+																			flexDirection:
+																				'column',
+																			height: '100%',
+																			justifyContent:
+																				'center',
+																			alignItems:
+																				'center',
+																		}}
+																	>
+																		{docDetails ? (
+																			<img
+																				src={getPageImageUrl(
+																					item.id,
+																					pageNum
+																				)}
+																				alt={`Page ${pageNum}`}
+																				style={{
+																					maxWidth:
+																						'100%',
+																					maxHeight:
+																						'100%',
+																					objectFit:
+																						'contain',
+																					display:
+																						'block',
+																				}}
+																			/>
+																		) : (
+																			<div
+																				style={{
+																					fontSize:
+																						'0.75rem',
+																					color: '#6b7280',
+																				}}
+																			>
+																				Loading
+																				image...
+																			</div>
+																		)}
+																	</div>
+																)}
+
+																{/* Text tab */}
+																{currentTab ===
+																	'text' && (
+																	<div
+																		style={{
+																			fontSize:
+																				'0.75rem',
+																			color: '#374151',
+																			height: '100%',
+																			overflowY:
+																				'auto',
+																			fontFamily:
+																				'monospace',
+																			whiteSpace:
+																				'pre-wrap',
+																			wordBreak:
+																				'break-word',
+																		}}
+																	>
+																		{docDetails?.fullText
+																			? docDetails.fullText.substring(
+																					0,
+																					500
+																			  ) +
+																			  '...'
+																			: 'Text not available.'}
+																	</div>
+																)}
+															</div>
+														</>
+													)}
+												</SortableDocumentItem>
+											);
+										})}
+									</SortableContext>
+								</div>
+
+								<DragOverlay>
+									{activeId ? (
 										<div
 											style={{
-												padding: '8px',
-												backgroundColor: '#f3f4f6',
-												borderBottom:
-													'1px solid #e5e7eb',
-												fontWeight: 500,
-												fontSize: '0.875rem',
+												display: 'inline-block',
+												width: '240px',
+												height: '320px',
+												backgroundColor: 'white',
+												border: '1px solid #e5e7eb',
+												borderRadius: '8px',
+												boxShadow:
+													'0 4px 12px rgba(0, 0, 0, 0.15)',
+												opacity: 0.8,
+												transform: 'rotate(5deg)',
 											}}
 										>
-											{queue.find(
-												(item) => item.id === activeId
-											)?.id || 'Document'}
+											<div
+												style={{
+													padding: '8px',
+													backgroundColor: '#f3f4f6',
+													borderBottom:
+														'1px solid #e5e7eb',
+													fontWeight: 500,
+													fontSize: '0.875rem',
+												}}
+											>
+												{queue.find(
+													(item) =>
+														item.id === activeId
+												)?.id || 'Document'}
+											</div>
 										</div>
-									</div>
-								) : null}
-							</DragOverlay>
-						</DndContext>
-					</>
-				)}
-			</div>
+									) : null}
+								</DragOverlay>
+							</DndContext>
+						</ScrollArea>
+					</SheetContent>
+				</div>
+			</Sheet>
 
 			{/* Render Investigations panel with higher z-index */}
 			<InvestigationsPanel
