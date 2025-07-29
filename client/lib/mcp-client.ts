@@ -48,6 +48,47 @@ export class NewsScraperMCPClient {
 	}
 
 	/**
+	 * Wrapper for MCP tool calls with timeout handling
+	 */
+	private async callToolWithTimeout(
+		toolName: string,
+		args: any,
+		timeoutMs: number = 120000 // 2 minutes default
+	): Promise<any> {
+		// For debugging - disable timeout for Firecrawl calls in development
+		if (
+			toolName === 'firecrawl_news_homepage' &&
+			process.env.NODE_ENV === 'development'
+		) {
+			console.log(
+				`🔧 Development mode: Disabling timeout for ${toolName}`
+			);
+			return this.client.callTool({
+				name: toolName,
+				arguments: args,
+			});
+		}
+
+		return Promise.race([
+			this.client.callTool({
+				name: toolName,
+				arguments: args,
+			}),
+			new Promise<never>((_, reject) =>
+				setTimeout(
+					() =>
+						reject(
+							new Error(
+								`Tool ${toolName} timed out after ${timeoutMs}ms`
+							)
+						),
+					timeoutMs
+				)
+			),
+		]);
+	}
+
+	/**
 	 * Connect to the MCP server
 	 */
 	async connect(): Promise<void> {
@@ -154,9 +195,9 @@ export class NewsScraperMCPClient {
 		await this.ensureConnected();
 
 		try {
-			const result = await this.client.callTool({
-				name: 'scrape_webpage',
-				arguments: {
+			const result = await this.callToolWithTimeout(
+				'scrape_webpage',
+				{
 					url: params.url,
 					selector: params.selector,
 					extract_text: params.extractText ?? true,
@@ -164,7 +205,8 @@ export class NewsScraperMCPClient {
 					extract_images: params.extractImages ?? false,
 					max_content_length: params.maxContentLength,
 				},
-			});
+				60000 // 1 minute timeout for individual page scraping
+			);
 
 			return this.parseToolResult(result);
 		} catch (error) {
@@ -180,10 +222,11 @@ export class NewsScraperMCPClient {
 		await this.ensureConnected();
 
 		try {
-			const result = await this.client.callTool({
-				name: 'extract_metadata',
-				arguments: { url },
-			});
+			const result = await this.callToolWithTimeout(
+				'extract_metadata',
+				{ url },
+				30000 // 30 seconds timeout for metadata extraction
+			);
 
 			return this.parseToolResult(result);
 		} catch (error) {
@@ -205,16 +248,17 @@ export class NewsScraperMCPClient {
 		await this.ensureConnected();
 
 		try {
-			const result = await this.client.callTool({
-				name: 'search_content',
-				arguments: {
+			const result = await this.callToolWithTimeout(
+				'search_content',
+				{
 					url: params.url,
 					query: params.query,
 					case_sensitive: params.caseSensitive ?? false,
 					context_chars: params.contextChars ?? 100,
 					max_results: params.maxResults ?? 10,
 				},
-			});
+				30000 // 30 seconds timeout for content search
+			);
 
 			return this.parseToolResult(result);
 		} catch (error) {
@@ -230,10 +274,11 @@ export class NewsScraperMCPClient {
 		await this.ensureConnected();
 
 		try {
-			const result = await this.client.callTool({
-				name: 'extract_text',
-				arguments: { url },
-			});
+			const result = await this.callToolWithTimeout(
+				'extract_text',
+				{ url },
+				45000 // 45 seconds timeout for text extraction
+			);
 
 			return this.parseToolResult(result);
 		} catch (error) {
@@ -255,6 +300,11 @@ export class NewsScraperMCPClient {
 	}): Promise<Record<string, NewsArticlePreview[]>> {
 		await this.ensureConnected();
 		try {
+			console.log(
+				`🚀 Starting news homepage scraping for ${params.sources.length} sources`
+			);
+			const startTime = Date.now();
+
 			// Convert NewsSourceDetails to the format expected by the MCP tool
 			const sites = params.sources.map((source) => ({
 				domain: new URL(source.url).hostname.replace('www.', ''),
@@ -278,9 +328,14 @@ export class NewsScraperMCPClient {
 				},
 			}));
 
-			const result = await this.client.callTool({
-				name: 'firecrawl_news_homepage',
-				arguments: {
+			console.log(
+				`📡 Calling Firecrawl tool with domains:`,
+				sites.map((s) => s.domain)
+			);
+
+			const result = await this.callToolWithTimeout(
+				'firecrawl_news_homepage',
+				{
 					urls: sites.map((s) => s.domain),
 					limit: 20,
 					includeMedia: params.includeMedia ?? true,
@@ -288,7 +343,15 @@ export class NewsScraperMCPClient {
 					includeMetrics: params.includeMetrics ?? false,
 					sortBy: params.sortBy ?? 'position',
 				},
-			});
+				600000 // 10 minutes timeout for news scraping (increased from 3 minutes)
+			);
+
+			const duration = Date.now() - startTime;
+			console.log(
+				`✅ Firecrawl completed in ${duration}ms (${(
+					duration / 1000
+				).toFixed(1)}s)`
+			);
 
 			const parsed = this.parseToolResult(result);
 			// Assign UUIDs to all articles if not already a valid UUID
@@ -302,6 +365,14 @@ export class NewsScraperMCPClient {
 					id: uuidify(article.id),
 				}));
 			}
+
+			const totalArticles = Object.values(dataWithUUIDs).flat().length;
+			console.log(
+				`📊 Scraped ${totalArticles} articles from ${
+					Object.keys(dataWithUUIDs).length
+				} sources`
+			);
+
 			return dataWithUUIDs;
 		} catch (error) {
 			console.error('❌ Failed to scrape news homepages:', error);
@@ -330,9 +401,9 @@ export class NewsScraperMCPClient {
 				selectors: source.selectors,
 			}));
 
-			const result = await this.client.callTool({
-				name: 'scrape_news_pipeline',
-				arguments: {
+			const result = await this.callToolWithTimeout(
+				'scrape_news_pipeline',
+				{
 					sites,
 					limit: params.limit ?? 10,
 					delayBetweenRequests: params.delayBetweenRequests ?? 1000,
@@ -340,7 +411,8 @@ export class NewsScraperMCPClient {
 					includeText: params.includeText ?? true,
 					includeMetrics: params.includeMetrics ?? false,
 				},
-			});
+				240000 // 4 minutes timeout for pipeline
+			);
 
 			return this.parseToolResult(result);
 		} catch (error) {

@@ -16,7 +16,7 @@ import {
 	DatabaseIcon,
 	CheckIcon,
 } from 'lucide-react';
-import { useDocumentDock } from '@/lib/context/DocumentDockContext';
+import { useNewsDock } from '@/lib/context/NewsDockContext';
 
 // Component for displaying source icon with fallback
 const SourceIcon = ({
@@ -134,17 +134,17 @@ export default function NewsScraperExample() {
 		reorderQueue,
 		setQueue,
 		addToQueue,
-	} = useDocumentDock();
+	} = useNewsDock();
 
-	// Add to DocumentDock queue using context - now handled per item
+	// Add to NewsDock queue using context - now handled per item
 	// Removed multi-select functionality for direct click-to-add interaction
 
-	// Helper function to check if a document is already in the DocumentDock
+	// Helper function to check if an article is already in the NewsDock
 	const isDocumentInDock = (
 		doc: Omit<Document, 'createdAt' | 'updatedAt'>
 	) => {
 		return queue.some(
-			(queueItem) =>
+			(queueItem: any) =>
 				queueItem.url === doc.documentUrl || queueItem.id === doc.id
 		);
 	};
@@ -173,6 +173,11 @@ export default function NewsScraperExample() {
 		Record<string, Array<Omit<Document, 'createdAt' | 'updatedAt'>>>
 	>({});
 
+	// Article-based state (for scraped articles)
+	const [articles, setArticles] = useState<
+		Record<string, NewsArticlePreview[]>
+	>({});
+
 	const [scraping, setScraping] = useState(false);
 	const [grouping, setGrouping] = useState(false);
 	const [loading, setLoading] = useState(false);
@@ -180,7 +185,7 @@ export default function NewsScraperExample() {
 	const [showGrouped, setShowGrouped] = useState(false);
 	const [useOpenAI, setUseOpenAI] = useState(true); // Enable OpenAI by default
 
-	// Auto-connect and load documents from database on mount
+	// Auto-connect and load articles from database on mount
 	useEffect(() => {
 		const initializeApp = async () => {
 			if (!mcp.isConnected && !mcp.isLoading) {
@@ -197,150 +202,190 @@ export default function NewsScraperExample() {
 			// 3. Should implement proper loading states and data reconciliation
 			// 4. Consider using React Query or SWR for better caching and state management
 			// 5. Auto-grouping should be debounced/throttled to avoid excessive API calls
-			// Auto-load documents from database when MCP is connected
+			// Auto-load articles from database when MCP is connected
 			if (mcp.isConnected && Object.keys(documents).length === 0) {
-				console.log('� Auto-loading documents from database...');
+				console.log('🔄 Auto-loading articles from database...');
 				// Call the actual handleLoadFromDatabase function without the loading state
 				try {
 					const response = await fetch('/api/news/documents');
 					if (!response.ok) {
 						throw new Error(
-							`Failed to load documents: ${response.statusText}`
+							`Failed to load articles: ${response.statusText}`
 						);
 					}
 
 					const data = await response.json();
+					console.log('✅ Auto-loaded articles from database:', data);
 					console.log(
-						'✅ Auto-loaded documents from database:',
-						data
+						'🔍 First few articles:',
+						data.documents?.slice(0, 3)
 					);
 
-					// Convert database documents back to the format expected by the component
+					// Convert database articles back to the format expected by the component
 					const documentsData: Record<
 						string,
 						Array<Omit<Document, 'createdAt' | 'updatedAt'>>
 					> = {};
 
-					// Group documents by source/documentGroup
-					data.documents.forEach((doc: Document) => {
-						const source = doc.documentGroup || 'Unknown Source';
-						if (!documentsData[source]) {
-							documentsData[source] = [];
-						}
+					// Group articles by source
+					data.documents
+						.filter(
+							(article: any) =>
+								article && article.id && article.title
+						) // Filter out invalid articles
+						.forEach((article: any) => {
+							const source =
+								article.source?.name ||
+								article.source?.site ||
+								'Unknown Source';
+							if (!documentsData[source]) {
+								documentsData[source] = [];
+							}
 
-						// Convert dates from strings back to Date objects
-						const convertedDoc = {
-							...doc,
-							processingDate: doc.processingDate
-								? new Date(doc.processingDate)
-								: null,
-							earliestDate: doc.earliestDate
-								? new Date(doc.earliestDate)
-								: null,
-							latestDate: doc.latestDate
-								? new Date(doc.latestDate)
-								: null,
-						};
+							// Convert article to document format for backward compatibility
+							const convertedDoc = {
+								id: article.id,
+								oldId: null,
+								title: article.title,
+								summary: article.summary,
+								fullText: article.fullText,
+								documentUrl: article.url,
+								documentGroup: source,
+								documentType: 'news_article',
+								document: {
+									title: article.title,
+									url: article.url,
+									summary: article.summary,
+									source: article.source,
+									media: article.media,
+								},
+								processingDate: article.publishedAt
+									? new Date(article.publishedAt)
+									: null,
+								earliestDate: article.publishedAt
+									? new Date(article.publishedAt)
+									: null,
+								latestDate: article.publishedAt
+									? new Date(article.publishedAt)
+									: null,
+								// Required array fields
+								allNames: [],
+								allPlaces: [],
+								allDates: [],
+								allObjects: [],
+								stamps: [],
+								normalizedDates: article.publishedAt
+									? [new Date(article.publishedAt)]
+									: [],
+								// Boolean flags
+								hasHandwrittenNotes: false,
+								hasStamps: false,
+								hasFullText: !!article.fullText,
+								// Processing fields
+								pageCount: 1,
+								processingStage: 'completed',
+								processingSteps: ['complete'],
+								lastProcessed: new Date(),
+								processingError: null,
+								archiveId: null,
+								searchText: `${article.title} ${
+									article.summary || ''
+								}`.trim(),
+							};
 
-						// Remove createdAt/updatedAt as they're not in our component type
-						const {
-							createdAt,
-							updatedAt,
-							...docWithoutTimestamps
-						} = convertedDoc;
-						documentsData[source].push(docWithoutTimestamps);
-					});
+							documentsData[source].push(convertedDoc);
+						});
 
 					setDocuments(documentsData);
 					setShowGrouped(false); // Initially show by source
 
 					console.log(
-						`✅ Auto-loaded ${data.documents.length} documents from database`
+						`✅ Auto-loaded ${data.documents.length} articles from database`
 					);
 
-					// Auto-group by current events if we have documents
-					if (data.documents.length > 0) {
-						console.log(
-							'🤖 Auto-grouping documents by current events...'
-						);
-						try {
-							// Convert documents to articles format for text analysis
-							const allDocuments =
-								Object.values(documentsData).flat();
-							const articlesForAnalysis: NewsArticlePreview[] =
-								allDocuments.map((doc) => ({
-									id: doc.id,
-									title: doc.title || 'Untitled',
-									link: doc.documentUrl || '',
-									excerpt: doc.summary || '',
-									source: {
-										site:
-											doc.documentGroup ||
-											'Unknown Source',
-										domain:
-											doc.documentGroup ||
-											'Unknown Source',
-									},
-								}));
+					// Auto-group by current events disabled to save OpenAI credits
+					// if (data.documents.length > 0) {
+					// 	console.log(
+					// 		'🤖 Auto-grouping documents by current events...'
+					// 	);
+					// 	try {
+					// 		// Convert documents to articles format for text analysis
+					// 		const allDocuments =
+					// 			Object.values(documentsData).flat();
+					// 		const articlesForAnalysis: NewsArticlePreview[] =
+					// 			allDocuments.map((doc) => ({
+					// 				id: doc.id,
+					// 				title: doc.title || 'Untitled',
+					// 				link: doc.documentUrl || '',
+					// 				excerpt: doc.summary || '',
+					// 				source: {
+					// 					site:
+					// 						doc.documentGroup ||
+					// 						'Unknown Source',
+					// 					domain:
+					// 						doc.documentGroup ||
+					// 						'Unknown Source',
+					// 				},
+					// 			}));
 
-							const grouped =
-								await textAnalysisClient.groupArticlesByCurrentEvents(
-									articlesForAnalysis,
-									{
-										maxGroups: 8,
-										minArticlesPerGroup: 2,
-										useOpenAI: useOpenAI, // Use the toggle state
-									}
-								);
+					// 		const grouped =
+					// 			await textAnalysisClient.groupArticlesByCurrentEvents(
+					// 				articlesForAnalysis,
+					// 				{
+					// 					maxGroups: 8,
+					// 					minArticlesPerGroup: 2,
+					// 					useOpenAI: useOpenAI, // Use the toggle state
+					// 				}
+					// 			);
 
-							// Convert back to documents format
-							const groupedDocs: Record<
-								string,
-								Array<Omit<Document, 'createdAt' | 'updatedAt'>>
-							> = {};
-							for (const [groupName, articles] of Object.entries(
-								grouped
-							)) {
-								groupedDocs[groupName] = (
-									articles as any[]
-								).map((article: any) => {
-									const originalDoc = allDocuments.find(
-										(doc) => doc.id === article.id
-									);
-									return originalDoc!;
-								});
-							}
+					// 		// Convert back to documents format
+					// 		const groupedDocs: Record<
+					// 			string,
+					// 			Array<Omit<Document, 'createdAt' | 'updatedAt'>>
+					// 		> = {};
+					// 		for (const [groupName, articles] of Object.entries(
+					// 			grouped
+					// 		)) {
+					// 			groupedDocs[groupName] = (
+					// 				articles as any[]
+					// 			).map((article: any) => {
+					// 				const originalDoc = allDocuments.find(
+					// 					(doc) => doc.id === article.id
+					// 				);
+					// 				return originalDoc!;
+					// 			});
+					// 		}
 
-							setGroupedDocuments(groupedDocs);
-							setShowGrouped(true); // Automatically show grouped view
+					// 		setGroupedDocuments(groupedDocs);
+					// 		setShowGrouped(true); // Automatically show grouped view
 
-							// Store grouped documents in localStorage
-							try {
-								localStorage.setItem(
-									'groupedDocuments',
-									JSON.stringify(groupedDocs)
-								);
-							} catch (err) {
-								console.error(
-									'Error saving grouped documents to localStorage:',
-									err
-								);
-							}
+					// 		// Store grouped documents in localStorage
+					// 		try {
+					// 			localStorage.setItem(
+					// 				'groupedDocuments',
+					// 				JSON.stringify(groupedDocs)
+					// 			);
+					// 		} catch (err) {
+					// 			console.error(
+					// 				'Error saving grouped documents to localStorage:',
+					// 				err
+					// 			);
+					// 		}
 
-							console.log(
-								'✅ Auto-grouped documents by current events'
-							);
-						} catch (groupingError) {
-							console.error(
-								'❌ Failed to auto-group documents:',
-								groupingError
-							);
-							// If grouping fails, just show the regular documents
-							setShowGrouped(false);
-						}
-					}
+					// 		console.log(
+					// 			'✅ Auto-grouped documents by current events'
+					// 		);
+					// 	} catch (groupingError) {
+					// 		console.error(
+					// 			'❌ Failed to auto-group documents:',
+					// 			groupingError
+					// 		);
+					// 		// If grouping fails, just show the regular documents
+					// 		setShowGrouped(false);
+					// 	}
+					// }
 				} catch (error) {
-					console.error('❌ Failed to auto-load documents:', error);
+					console.error('❌ Failed to auto-load articles:', error);
 					// Silently fail auto-load, user can still manually load
 				}
 			}
@@ -379,8 +424,8 @@ export default function NewsScraperExample() {
 
 		setScraping(true);
 		try {
-			// Limit to max 3 sources to avoid timeouts
-			const sourcesToScrape = selection.selectedSources.slice(0, 3);
+			// Limit to max 2 sources to avoid timeouts (was 3)
+			const sourcesToScrape = selection.selectedSources.slice(0, 2);
 			console.log(
 				`🚀 Scraping ${sourcesToScrape.length} sources:`,
 				sourcesToScrape
@@ -388,94 +433,31 @@ export default function NewsScraperExample() {
 
 			// Use the existing MCP client instead of separate document client
 			const result = await mcp.scrapeSelectedSources(sourcesToScrape, {
-				limit: 3, // Reduce limit to avoid timeouts
+				limit: 5, // Reduced from 3 to 5 to get more articles but with timeout protection
 				includeMedia: true,
 				includeSections: true,
 			});
 
 			console.log('📥 Raw scraping result:', result);
-
-			// TODO: Move article-to-document conversion to the backend
-			// The MCP server should return documents directly instead of articles
-			// This conversion logic belongs in the news scraper server, not the client
-			// Benefits: reduces client processing, ensures consistent conversion, better error handling
-
-			// Convert articles to documents manually
-			const documentsData: Record<
-				string,
-				Array<Omit<Document, 'createdAt' | 'updatedAt'>>
-			> = {};
-
-			for (const [sourceName, articles] of Object.entries(result)) {
-				console.log(
-					`🔄 Converting ${articles.length} articles from ${sourceName}`
-				);
-				documentsData[sourceName] = articles.map((article) => {
-					// Convert NewsArticlePreview to Document format
-					const {
-						newsArticleToDocument,
-					} = require('@shared/backend/src/utils/articleToDocument');
-					return newsArticleToDocument(article);
-				});
-			}
-
-			console.log('✅ Converted to documents:', documentsData);
-			setDocuments(documentsData);
-			setShowGrouped(false); // Reset to show scraped view
-
-			// TODO: Move this auto-save logic to the backend MCP server
-			// The news scraper MCP server should automatically save to DB after scraping
-			// This would eliminate the need for separate conversion + save steps
-			// Consider adding a `autoSave: boolean` parameter to scrape_news_homepages tool
-
-			// Automatically save to database
-			try {
-				console.log('💾 Saving documents to database...');
-
-				// TODO: Replace this frontend API call with backend integration
-				// The MCP server should handle document persistence directly
-				// This reduces client-server round trips and ensures data consistency
-
-				// We need to send the original articles, not the converted documents
-				const allArticles = Object.values(result).flat();
-
-				const saveResponse = await fetch('/api/articles/to-documents', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						articles: allArticles,
-						type: 'news-preview',
-					}),
-				});
-
-				if (saveResponse.ok) {
-					const saveResult = await saveResponse.json();
-					console.log('✅ Documents saved to database:', saveResult);
-					alert(
-						`Successfully saved ${
-							saveResult.createdDocuments?.length ||
-							saveResult.created ||
-							0
-						} documents to database!`
-					);
-				} else {
-					const errorText = await saveResponse.text();
-					console.error('❌ Failed to save documents:', errorText);
-					alert('Failed to save documents to database');
-				}
-			} catch (saveError) {
-				console.error('❌ Error saving documents:', saveError);
-				alert('Error saving documents to database');
-			}
+			setArticles(result);
 		} catch (error) {
 			console.error('❌ Scraping failed:', error);
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
-			alert(
-				`Scraping failed: ${errorMessage}. Try selecting fewer sources or check if the news servers are running properly.`
-			);
+
+			// Check if it's a timeout error and provide specific guidance
+			if (
+				errorMessage.includes('timeout') ||
+				errorMessage.includes('timed out')
+			) {
+				alert(
+					`Scraping timed out: ${errorMessage}\n\nTips to avoid timeouts:\n• Select fewer sources (max 2 recommended)\n• Try again later if news sites are slow\n• Check if the MCP server is overloaded`
+				);
+			} else {
+				alert(
+					`Scraping failed: ${errorMessage}\n\nPlease check:\n• News servers are running properly\n• Selected sources are accessible\n• MCP server connection is stable`
+				);
+			}
 		} finally {
 			setScraping(false);
 		}
@@ -486,62 +468,104 @@ export default function NewsScraperExample() {
 
 		setLoading(true);
 		try {
-			console.log('📖 Loading news documents from database...');
+			console.log('📖 Loading news articles from database...');
 
 			const response = await fetch('/api/news/documents');
 			if (!response.ok) {
 				throw new Error(
-					`Failed to load documents: ${response.statusText}`
+					`Failed to load articles: ${response.statusText}`
 				);
 			}
 
 			const data = await response.json();
-			console.log('✅ Loaded documents from database:', data);
+			console.log('✅ Loaded articles from database:', data);
+			console.log('🔍 First few articles:', data.documents?.slice(0, 3));
 
-			// Convert database documents back to the format expected by the component
+			// Convert database articles back to the format expected by the component
 			const documentsData: Record<
 				string,
 				Array<Omit<Document, 'createdAt' | 'updatedAt'>>
 			> = {};
 
-			// Group documents by source/documentGroup
-			data.documents.forEach((doc: Document) => {
-				const source = doc.documentGroup || 'Unknown Source';
-				if (!documentsData[source]) {
-					documentsData[source] = [];
-				}
+			// Group articles by source
+			data.documents
+				.filter(
+					(article: any) => article && article.id && article.title
+				) // Filter out invalid articles
+				.forEach((article: any) => {
+					const source =
+						article.source?.name ||
+						article.source?.site ||
+						'Unknown Source';
+					if (!documentsData[source]) {
+						documentsData[source] = [];
+					}
 
-				// Convert dates from strings back to Date objects
-				const convertedDoc = {
-					...doc,
-					processingDate: doc.processingDate
-						? new Date(doc.processingDate)
-						: null,
-					earliestDate: doc.earliestDate
-						? new Date(doc.earliestDate)
-						: null,
-					latestDate: doc.latestDate
-						? new Date(doc.latestDate)
-						: null,
-				};
+					// Convert article to document format for backward compatibility
+					const convertedDoc = {
+						id: article.id,
+						oldId: null,
+						title: article.title,
+						summary: article.summary,
+						fullText: article.fullText,
+						documentUrl: article.url,
+						documentGroup: source,
+						documentType: 'news_article',
+						document: {
+							title: article.title,
+							url: article.url,
+							summary: article.summary,
+							source: article.source,
+							media: article.media,
+						},
+						processingDate: article.publishedAt
+							? new Date(article.publishedAt)
+							: null,
+						earliestDate: article.publishedAt
+							? new Date(article.publishedAt)
+							: null,
+						latestDate: article.publishedAt
+							? new Date(article.publishedAt)
+							: null,
+						// Required array fields
+						allNames: [],
+						allPlaces: [],
+						allDates: [],
+						allObjects: [],
+						stamps: [],
+						normalizedDates: article.publishedAt
+							? [new Date(article.publishedAt)]
+							: [],
+						// Boolean flags
+						hasHandwrittenNotes: false,
+						hasStamps: false,
+						hasFullText: !!article.fullText,
+						// Processing fields
+						pageCount: 1,
+						processingStage: 'completed',
+						processingSteps: ['complete'],
+						lastProcessed: new Date(),
+						processingError: null,
+						archiveId: null,
+						searchText: `${article.title} ${
+							article.summary || ''
+						}`.trim(),
+					};
 
-				// Remove createdAt/updatedAt as they're not in our component type
-				const { createdAt, updatedAt, ...docWithoutTimestamps } =
-					convertedDoc;
-				documentsData[source].push(docWithoutTimestamps);
-			});
+					documentsData[source].push(convertedDoc);
+				});
 
 			setDocuments(documentsData);
 			setShowGrouped(false); // Show raw documents when loading from DB
 
 			alert(
-				`Successfully loaded ${data.documents.length} news documents from database!`
+				`Successfully loaded ${data.documents.length} news articles from database!`
 			);
 		} catch (error) {
-			console.error('❌ Failed to load documents:', error);
+			console.error('❌ Failed to load articles:', error);
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
-			alert(`Failed to load documents: ${errorMessage}`);
+			alert(`Failed to load articles: ${errorMessage}`);
 		} finally {
 			setLoading(false);
 		}
@@ -624,7 +648,7 @@ export default function NewsScraperExample() {
 		const sourcesInCategory = mcp.sources
 			.filter((source: any) => source.category === category)
 			.map((source: any) => source.id);
-		selection.selectAll(sourcesInCategory.slice(0, 3)); // Limit to 3 for demo
+		selection.selectAll(sourcesInCategory.slice(0, 2)); // Reduced from 3 to 2 for better timeout handling
 	};
 
 	if (mcp.isLoading && !mcp.isConnected) {
@@ -696,21 +720,22 @@ export default function NewsScraperExample() {
 						'centrist',
 						'business',
 						'tech',
-					].map((category) => (
-						<button
-							key={category}
-							onClick={() => handleSelectByCategory(category)}
-							className='px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm capitalize'
-						>
-							{category} (
-							{
-								mcp.sources.filter(
-									(s: any) => s.category === category
-								).length
-							}
-							)
-						</button>
-					))}
+					].map((category) => {
+						const categoryCount = mcp.sources.filter(
+							(s: any) => s.category === category
+						).length;
+						const willSelect = Math.min(categoryCount, 2);
+						return (
+							<button
+								key={category}
+								onClick={() => handleSelectByCategory(category)}
+								className='px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm capitalize'
+								title={`Select ${willSelect} of ${categoryCount} sources (limited to 2 for timeout prevention)`}
+							>
+								{category} ({willSelect}/{categoryCount})
+							</button>
+						);
+					})}
 				</div>
 			</div>
 
@@ -786,8 +811,23 @@ export default function NewsScraperExample() {
 						>
 							{scraping
 								? 'Scraping...'
-								: `Scrape ${selection.count} Selected Sources as Documents`}
+								: `Scrape ${Math.min(
+										selection.count,
+										2
+								  )} Selected Sources ${
+										Math.min(selection.count, 2) === 1
+											? '(Fast Mode)'
+											: '(Batch Mode)'
+								  }`}
 						</button>
+
+						{selection.count > 2 && (
+							<div className='mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800'>
+								⚠️ Only the first 2 sources will be scraped to
+								avoid timeouts. Deselect some sources or scrape
+								in multiple batches.
+							</div>
+						)}
 
 						{/* Load from Database button */}
 						<button
@@ -798,14 +838,14 @@ export default function NewsScraperExample() {
 							<DatabaseIcon className='w-4 h-4' />
 							{loading
 								? 'Loading...'
-								: 'Load News Documents from Database'}
+								: 'Load News Articles from Database'}
 						</button>
 
 						{loading && (
 							<div className='mt-3 text-center'>
 								<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto'></div>
 								<p className='text-sm text-gray-600 mt-2'>
-									Loading news documents from database...
+									Loading news articles from database...
 								</p>
 							</div>
 						)}
@@ -814,8 +854,14 @@ export default function NewsScraperExample() {
 							<div className='mt-3 text-center'>
 								<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto'></div>
 								<p className='text-sm text-gray-600 mt-2'>
-									Scraping news from selected sources and
-									converting to unified document format...
+									Scraping news from selected sources with
+									improved timeout handling...
+									<br />
+									<span className='text-xs'>
+										{Math.min(selection.count, 2) === 1
+											? 'Using optimized single-source scraping for faster results'
+											: 'Processing in batches to ensure reliability'}
+									</span>
 								</p>
 							</div>
 						)}
@@ -971,136 +1017,147 @@ export default function NewsScraperExample() {
 											</h4>
 											<ScrollArea className='h-80 flex-1'>
 												<div className='space-y-2'>
-													{groupDocuments.map(
-														(document, idx) => {
-															const documentId =
-																document.id ||
-																document.documentUrl ||
-																`${groupName}-${idx}`;
-															const inDock =
-																isDocumentInDock(
-																	document
-																);
+													{groupDocuments
+														.filter(
+															(document) =>
+																document != null
+														)
+														.map(
+															(document, idx) => {
+																const documentId =
+																	document.id ||
+																	document.documentUrl ||
+																	`${groupName}-${idx}`;
+																const inDock =
+																	isDocumentInDock(
+																		document
+																	);
 
-															const handleToggleDock =
-																() => {
-																	if (
-																		inDock
-																	) {
-																		// Remove from dock
-																		const queueItem =
-																			queue.find(
-																				(
-																					item
-																				) =>
-																					item.url ===
-																						document.documentUrl ||
-																					item.id ===
-																						document.id
-																			);
+																const handleToggleDock =
+																	() => {
 																		if (
-																			queueItem
+																			inDock
 																		) {
-																			removeFromQueue(
-																				queueItem.id
+																			// Remove from dock
+																			const queueItem =
+																				queue.find(
+																					(
+																						item
+																					) =>
+																						item.url ===
+																							document.documentUrl ||
+																						item.id ===
+																							document.id
+																				);
+																			if (
+																				queueItem
+																			) {
+																				removeFromQueue(
+																					queueItem.id
+																				);
+																			}
+																		} else {
+																			// Add to dock
+																			addToQueue(
+																				{
+																					id: document.id as string,
+																					title:
+																						document.title ||
+																						'Untitled',
+																					url:
+																						document.documentUrl ||
+																						'',
+																					type: 'article',
+																					source: {
+																						name:
+																							document.documentGroup ||
+																							'Unknown Source',
+																						site:
+																							document.documentGroup ||
+																							'Unknown Source',
+																						domain:
+																							document.documentGroup ||
+																							'Unknown Source',
+																					},
+																					publishedAt:
+																						document.earliestDate?.toISOString(),
+																					excerpt:
+																						document.summary ||
+																						undefined,
+																					summary:
+																						document.summary ||
+																						undefined,
+																				}
 																			);
 																		}
-																	} else {
-																		// Add to dock
-																		addToQueue(
-																			{
-																				id: document.id as string,
-																				title:
-																					document.title ||
-																					'Untitled',
-																				url:
-																					document.documentUrl ||
-																					'',
-																				type: 'document',
-																				source: {
-																					site:
-																						document.documentGroup ||
-																						'Unknown Source',
-																					domain:
-																						document.documentGroup ||
-																						'Unknown Source',
-																				},
-																				publishDate:
-																					document.earliestDate?.toISOString(),
-																				excerpt:
-																					document.summary ||
-																					undefined,
-																			}
-																		);
-																	}
-																};
+																	};
 
-															return (
-																<div
-																	key={
-																		documentId
-																	}
-																	onClick={
-																		handleToggleDock
-																	}
-																	className={`flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer transition-colors rounded-sm ${
-																		inDock
-																			? 'bg-green-50 border-green-200'
-																			: ''
-																	}`}
-																>
-																	<div className='mr-3 flex-shrink-0'>
-																		<DocumentIcon
-																			document={
-																				document
-																			}
-																			inDock={
-																				inDock
-																			}
-																		/>
-																	</div>
-																	<div className='flex-1 min-w-0'>
-																		<div className='font-medium text-sm leading-tight mb-1'>
-																			{document.title ||
-																				'Untitled Document'}
-																		</div>
-																		{document.summary && (
-																			<p className='text-xs text-gray-600 mb-1 line-clamp-2'>
-																				{
-																					document.summary
+																return (
+																	<div
+																		key={
+																			documentId
+																		}
+																		onClick={
+																			handleToggleDock
+																		}
+																		className={`flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer transition-colors rounded-sm ${
+																			inDock
+																				? 'bg-green-50 border-green-200'
+																				: ''
+																		}`}
+																	>
+																		<div className='mr-3 flex-shrink-0'>
+																			<DocumentIcon
+																				document={
+																					document
 																				}
-																			</p>
-																		)}
-																		<div className='flex items-center gap-2 text-xs text-gray-500'>
-																			{document.document &&
-																				typeof document.document ===
-																					'object' &&
-																				(
-																					document.document as any
-																				)
-																					?.imageUrl && (
+																				inDock={
+																					inDock
+																				}
+																			/>
+																		</div>
+																		<div className='flex-1 min-w-0'>
+																			<div className='font-medium text-sm leading-tight mb-1'>
+																				{document.title ||
+																					'Untitled Document'}
+																			</div>
+																			{document.summary && (
+																				<p className='text-xs text-gray-600 mb-1 line-clamp-2'>
+																					{
+																						document.summary
+																					}
+																				</p>
+																			)}
+																			<div className='flex items-center gap-2 text-xs text-gray-500'>
+																				{document.document &&
+																					typeof document.document ===
+																						'object' &&
+																					(
+																						document.document as any
+																					)
+																						?.imageUrl && (
+																						<span>
+																							📷
+																							Image
+																						</span>
+																					)}
+																				<span className='capitalize'>
+																					{document.documentGroup ||
+																						'Unknown Source'}
+																				</span>
+																				{document.earliestDate && (
 																					<span>
-																						📷
-																						Image
+																						{new Date(
+																							document.earliestDate
+																						).toLocaleDateString()}
 																					</span>
 																				)}
-																			<span className='capitalize'>
-																				{document.documentGroup ||
-																					'Unknown Source'}
-																			</span>
-																			{document.earliestDate && (
-																				<span>
-																					{new Date(
-																						document.earliestDate
-																					).toLocaleDateString()}
-																				</span>
-																			)}
+																			</div>
 																		</div>
 																	</div>
-																</div>
-															);
-														}
-													)}
+																);
+															}
+														)}
 												</div>
 											</ScrollArea>
 										</div>

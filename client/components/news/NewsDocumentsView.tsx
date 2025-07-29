@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DocumentNewsScraperClient } from '@/lib/document-news-client';
-import { useDocumentDock } from '@/lib/context/DocumentDockContext';
+import { useNewsDock } from '@/lib/context/NewsDockContext';
 import { Document } from '@prisma/client';
 
 interface NewsDocument
@@ -30,7 +30,7 @@ export default function NewsDocumentsView() {
 		Array<{ name: string; icon?: string }>
 	>([]);
 
-	const { addArticleToQueue } = useDocumentDock();
+	const { addToQueue: addToNewsDock } = useNewsDock();
 	const newsClient = new DocumentNewsScraperClient();
 
 	useEffect(() => {
@@ -135,13 +135,28 @@ export default function NewsDocumentsView() {
 	};
 
 	const addToQueue = (document: NewsDocument) => {
-		addArticleToQueue({
+		addToNewsDock({
 			id: document.id,
 			title: document.title || 'Untitled',
 			url: document.documentUrl || '#',
-			source: document.source,
-			publishDate: document.processingDate?.toString(),
-			excerpt: document.summary,
+			type: 'article',
+			source: {
+				name:
+					document.source?.site ||
+					document.documentGroup ||
+					'Unknown Source',
+				site:
+					document.source?.site ||
+					document.documentGroup ||
+					'Unknown Source',
+				domain:
+					document.source?.domain ||
+					document.documentGroup ||
+					'Unknown Source',
+			},
+			publishedAt: document.processingDate?.toString(),
+			excerpt: document.summary || undefined,
+			summary: document.summary || undefined,
 		});
 	};
 

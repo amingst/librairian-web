@@ -284,10 +284,7 @@ export class MCPHttpServer {
 		this.expressApp.get('/api/news-sources/all', async (req, res) => {
 			try {
 				const sources = await this.prisma.newsSource.findMany({
-					orderBy: [
-						{ isActive: 'desc' },
-						{ name: 'asc' },
-					],
+					orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
 				});
 
 				res.json({
@@ -295,8 +292,10 @@ export class MCPHttpServer {
 					data: {
 						sources,
 						total: sources.length,
-						active: sources.filter(s => s.isActive && !s.isDisabled).length,
-						disabled: sources.filter(s => s.isDisabled).length,
+						active: sources.filter(
+							(s) => s.isActive && !s.isDisabled
+						).length,
+						disabled: sources.filter((s) => s.isDisabled).length,
 						timestamp: new Date().toISOString(),
 					},
 				});

@@ -150,4 +150,47 @@ model NewsSource {
   @@index([name])
   @@index([isActive])
   @@index([isDisabled])
+  NewsArticle NewsArticle[]
+}
+
+model NewsArticle {
+  id          String   @id @default(cuid())
+  sourceId    String
+  title       String
+  url         String   @unique
+  summary     String?  @db.Text
+  publishedAt DateTime?
+  
+  // Future fields for full-text search, etc.
+  fullText    String?  @db.Text
+  
+  // Relation to NewsSource
+  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  
+  // Relation to ArticleMedia
+  media       ArticleMedia[]
+  
+  @@index([sourceId])
+  @@index([title])
+}
+
+model ArticleMedia {
+  id          String      @id @default(cuid())
+  articleId   String
+  url         String
+  title       String?
+  caption     String?     @db.Text
+  type        MediaType
+  createdAt   DateTime    @default(now())
+  
+  // Relation to NewsArticle
+  article     NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  @@index([articleId])
+  @@index([type])
+}
+
+enum MediaType {
+  VIDEO
+  IMAGE
 }

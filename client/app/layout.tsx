@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 // import { AuthProvider } from '../lib/context/AuthContext';
 import { DocumentDockProvider } from '../lib/context/DocumentDockContext';
-import { DocumentDock } from '../components/ui/DocumentDock';
+import { NewsDockProvider } from '../lib/context/NewsDockContext';
 import Link from 'next/link';
 import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
 import { ThemeProvider } from '../lib/context/ThemeContext';
@@ -34,10 +34,11 @@ export default function RootLayout({
 				>
 					<DocumentGroupProvider>
 						<DocumentDockProvider>
-							<NewsSourcesProvider>
-								{children}
-								<DocumentDock />
-							</NewsSourcesProvider>
+							<NewsDockProvider>
+								<NewsSourcesProvider>
+									{children}
+								</NewsSourcesProvider>
+							</NewsDockProvider>
 						</DocumentDockProvider>
 					</DocumentGroupProvider>
 				</ThemeProvider>

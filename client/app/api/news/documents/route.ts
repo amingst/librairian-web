@@ -15,35 +15,55 @@ export async function GET(request: Request) {
 		const url = new URL(request.url);
 		const limit = parseInt(url.searchParams.get('limit') || '100');
 		const offset = parseInt(url.searchParams.get('offset') || '0');
-		const documentGroup = url.searchParams.get('group');
+		const sourceId = url.searchParams.get('sourceId');
 
 		console.log(
-			`[NEWS DOCUMENTS API] Fetching news documents with limit: ${limit}, offset: ${offset}`
+			`[NEWS ARTICLES API] Fetching news articles with limit: ${limit}, offset: ${offset}, sourceId: ${sourceId}`
 		);
 
 		// Build where clause
-		const whereClause: any = {
-			documentGroup: documentGroup || 'news', // Default to 'news' group
-		};
+		const whereClause: any = {};
+		if (sourceId) {
+			whereClause.sourceId = sourceId;
+		}
 
-		// Fetch news documents from database
-		const documents = await prisma.document.findMany({
+		// Fetch news articles from database
+		const articles = await prisma.newsArticle.findMany({
 			where: whereClause,
+			include: {
+				source: true,
+				media: true,
+			},
 			orderBy: {
-				processingDate: 'desc',
+				publishedAt: 'desc',
 			},
 			take: limit,
 			skip: offset,
 		});
 
 		// Get total count for pagination
-		const totalCount = await prisma.document.count({
+		const totalCount = await prisma.newsArticle.count({
 			where: whereClause,
 		});
 
 		console.log(
-			`[NEWS DOCUMENTS API] Found ${documents.length} news documents (${totalCount} total)`
+			`[NEWS ARTICLES API] Found ${articles.length} news articles (${totalCount} total)`
 		);
+
+		// Transform articles to match expected format for compatibility
+		const documents = articles.map((article) => ({
+			id: article.id,
+			title: article.title,
+			url: article.url,
+			summary: article.summary,
+			fullText: article.fullText,
+			publishedAt: article.publishedAt,
+			source: article.source,
+			media: article.media,
+			// For backward compatibility with existing UI
+			documentUrl: article.url,
+			processingDate: article.publishedAt,
+		}));
 
 		return NextResponse.json({
 			status: 'success',
@@ -56,10 +76,10 @@ export async function GET(request: Request) {
 			},
 		});
 	} catch (error) {
-		console.error('[NEWS DOCUMENTS API] Error fetching documents:', error);
+		console.error('[NEWS ARTICLES API] Error fetching articles:', error);
 		return NextResponse.json(
 			{
-				error: 'Failed to fetch news documents',
+				error: 'Failed to fetch news articles',
 				status: 'error',
 				details: error instanceof Error ? error.message : String(error),
 			},
