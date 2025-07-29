@@ -60,7 +60,7 @@ const Header = () => {
 				>
 					LIBRΛIRIΛN
 				</a>
-				
+
 				<div
 					style={{
 						display: 'flex',
