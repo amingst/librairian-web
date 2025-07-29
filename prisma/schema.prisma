@@ -125,3 +125,29 @@ model DocumentStamp {
   @@index([date])
   @@index([text])
 }
+
+model NewsSource {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  url         String   // Main URL from JSON
+  icon        String?  // URL to the source's icon/logo
+  
+  // Selectors as JSONB to store the entire selectors object
+  selectors   Json?    // Will store: {"linkFilter": "a[href*=\"/politics/\"]", ...}
+  
+  // Status fields
+  isActive    Boolean  @default(true)
+  isDisabled  Boolean  @default(false) // For sources in "disabled" array
+  reason      String?  // Reason why disabled (for disabled sources)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Future relationship (when you add Article model)
+  // articles    Article[]
+  
+  @@index([name])
+  @@index([isActive])
+  @@index([isDisabled])
+}

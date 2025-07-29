@@ -5,10 +5,9 @@ import { Implementation as MCPImplementation } from '@modelcontextprotocol/sdk/t
 import { ServerOptions as MCPServerOptions } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
 import { inject, injectable } from 'inversify';
+import { PrismaClientFactory } from './PrismaClientFactory.js';
+import { PrismaClient } from '@prisma/client';
 
 export interface MCPServerConfig {
 	serverInfo: MCPImplementation;
@@ -35,6 +34,7 @@ export class MCPHttpServer {
 		streamable: {} as Record<string, StreamableHTTPServerTransport>,
 		sse: {} as Record<string, SSEServerTransport>,
 	};
+	private prisma: PrismaClient;
 
 	constructor(
 		@inject(Symbol.for('MCPServerConfig'))
@@ -44,6 +44,7 @@ export class MCPHttpServer {
 	) {
 		this.mcpServer = new McpServer(mcpConfig.serverInfo, mcpConfig.options);
 		this.expressApp = express();
+		this.prisma = PrismaClientFactory.getInstance('news-sources');
 		this.setupExpress(expressConfig);
 		this.setupMCPRoutes();
 	}
@@ -200,28 +201,25 @@ export class MCPHttpServer {
 
 	private setupNewsSourcesRoutes() {
 		// GET /api/news-sources - Returns list of active news sources with ID and name only
-		this.expressApp.get('/api/news-sources', (req, res) => {
+		this.expressApp.get('/api/news-sources', async (req, res) => {
 			try {
-				// Read the news sources configuration
-				const configPath = path.join(
-					__dirname,
-					'..',
-					'config',
-					'news-sources.json'
-				);
-				const configData = fs.readFileSync(configPath, 'utf8');
-				const config = JSON.parse(configData);
-
-				// Create simplified response with ID mechanism
-				const sources = config.sources.map(
-					(source: any, index: number) => ({
-						id: this.generateSourceId(source.name, source.url),
-						icon: source.icon || undefined,
-						name: source.name,
-						category: source.category,
-						method: source.method,
-					})
-				);
+				// Get active news sources from database
+				const sources = await this.prisma.newsSource.findMany({
+					where: {
+						isActive: true,
+						isDisabled: false,
+					},
+					select: {
+						id: true,
+						name: true,
+						icon: true,
+						createdAt: true,
+						updatedAt: true,
+					},
+					orderBy: {
+						name: 'asc',
+					},
+				});
 
 				res.json({
 					success: true,
@@ -243,25 +241,16 @@ export class MCPHttpServer {
 		});
 
 		// GET /api/news-sources/:id - Returns full configuration for a specific source
-		this.expressApp.get('/api/news-sources/:id', (req, res) => {
+		this.expressApp.get('/api/news-sources/:id', async (req, res) => {
 			try {
 				const sourceId = req.params.id;
 
-				// Read the news sources configuration
-				const configPath = path.join(
-					__dirname,
-					'..',
-					'config',
-					'news-sources.json'
-				);
-				const configData = fs.readFileSync(configPath, 'utf8');
-				const config = JSON.parse(configData);
-
-				// Find the source by ID
-				const source = config.sources.find(
-					(s: any) =>
-						this.generateSourceId(s.name, s.url) === sourceId
-				);
+				// Find the source by ID from database
+				const source = await this.prisma.newsSource.findUnique({
+					where: {
+						id: sourceId,
+					},
+				});
 
 				if (!source) {
 					res.status(404).json({
@@ -276,7 +265,6 @@ export class MCPHttpServer {
 				res.json({
 					success: true,
 					data: {
-						id: sourceId,
 						...source,
 						timestamp: new Date().toISOString(),
 					},
@@ -291,16 +279,37 @@ export class MCPHttpServer {
 				});
 			}
 		});
-	}
 
-	private generateSourceId(name: string, url: string): string {
-		// Create a consistent ID based on name and URL
-		const input = `${name.toLowerCase().replace(/\s+/g, '-')}-${url}`;
-		return crypto
-			.createHash('md5')
-			.update(input)
-			.digest('hex')
-			.substring(0, 12);
+		// GET /api/news-sources/all - Returns all news sources including disabled ones
+		this.expressApp.get('/api/news-sources/all', async (req, res) => {
+			try {
+				const sources = await this.prisma.newsSource.findMany({
+					orderBy: [
+						{ isActive: 'desc' },
+						{ name: 'asc' },
+					],
+				});
+
+				res.json({
+					success: true,
+					data: {
+						sources,
+						total: sources.length,
+						active: sources.filter(s => s.isActive && !s.isDisabled).length,
+						disabled: sources.filter(s => s.isDisabled).length,
+						timestamp: new Date().toISOString(),
+					},
+				});
+			} catch (error) {
+				console.error('Error loading all news sources:', error);
+				res.status(500).json({
+					success: false,
+					error: 'Failed to load all news sources',
+					message:
+						error instanceof Error ? error.message : String(error),
+				});
+			}
+		});
 	}
 
 	// Method to register MCP tools from your existing tool classes
@@ -325,12 +334,13 @@ export class MCPHttpServer {
 	public async stop() {
 		return new Promise<void>((resolve) => {
 			if (this.httpServer) {
-				this.httpServer.close(() => {
+				this.httpServer.close(async () => {
+					await this.prisma.$disconnect();
 					console.log('🛑 MCP HTTP Server stopped');
 					resolve();
 				});
 			} else {
-				resolve();
+				this.prisma.$disconnect().then(() => resolve());
 			}
 		});
 	}
