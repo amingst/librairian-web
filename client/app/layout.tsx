@@ -24,8 +24,12 @@ export default function RootLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<html lang='en' suppressHydrationWarning>
-			<body className={`${inter.className}`}>
+		<html
+			lang='en'
+			suppressHydrationWarning
+			className='h-full overflow-hidden'
+		>
+			<body className={`${inter.className} h-full overflow-hidden`}>
 				{/* <AuthProvider> */}
 				<ThemeProvider
 					attribute='class'

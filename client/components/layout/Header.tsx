@@ -100,10 +100,14 @@ const Header = () => {
 										</Link>
 									</NavigationMenuLink>
 								</NavigationMenuItem>
+								<NavigationMenuItem>
+									<div className='ml-2'>
+										<ThemeToggle />
+									</div>
+								</NavigationMenuItem>
 							</NavigationMenuList>
 						</NavigationMenu>
 					</nav>
-					<ThemeToggle />
 				</div>
 			</div>
 		</header>

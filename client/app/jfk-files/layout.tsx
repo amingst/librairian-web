@@ -11,6 +11,7 @@ import GlobalDocumentGroupFilter from '../../components/layout/GlobalDocumentGro
 import Button from '@mui/material/Button';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import Header from '@/components/layout/Header';
+import DocumentSidebar from '@/components/layout/DocumentSidebar';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -75,14 +76,26 @@ export default function JFKFilesLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className='jfk-files-layout'>
-			{/* <AuthProvider> */}
-			<div className={`${inter.className} flex flex-col min-h-screen`}>
-				{/* <Header /> */}
-				{children}
-				<DocumentDock />
+		<div className='jfk-files-layout w-full h-[calc(100vh-64px)] flex flex-col'>
+			<div className={`${inter.className} flex-1 flex overflow-hidden`}>
+				{/* Fixed sidebar */}
+				<aside className='w-56 flex-shrink-0 h-full overflow-hidden dark:bg-gray-900 bg-gray-100 border-r border-gray-200 dark:border-gray-700'>
+					<DocumentSidebar />
+				</aside>
+				
+				{/* Main content area with its own scrolling */}
+				<main className='flex-1 flex flex-col overflow-hidden'>
+					{/* Scrollable content area */}
+					<div className='flex-1 overflow-y-auto pb-16'>
+						{children}
+					</div>
+					
+					{/* Fixed dock at the bottom */}
+					<div className='absolute bottom-0 left-56 right-0'>
+						<DocumentDock />
+					</div>
+				</main>
 			</div>
-			{/* </AuthProvider> */}
 		</div>
 	);
 }

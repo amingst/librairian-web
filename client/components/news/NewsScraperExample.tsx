@@ -141,11 +141,13 @@ export default function NewsScraperExample() {
 
 	// Helper function to check if an article is already in the NewsDock
 	const isDocumentInDock = (
-		doc: Omit<Document, 'createdAt' | 'updatedAt'>
+		doc: Omit<Document, 'createdAt' | 'updatedAt'> | null
 	) => {
+		if (!doc) return false;
 		return queue.some(
 			(queueItem: any) =>
-				queueItem.url === doc.documentUrl || queueItem.id === doc.id
+				(doc.documentUrl && queueItem.url === doc.documentUrl) ||
+				(doc.id && queueItem.id === doc.id)
 		);
 	};
 
@@ -153,7 +155,9 @@ export default function NewsScraperExample() {
 	const getDocumentStats = () => {
 		const currentDocuments = Object.values(
 			showGrouped ? groupedDocuments : documents
-		).flat();
+		)
+			.flat()
+			.filter((doc) => doc != null);
 		const totalDocuments = currentDocuments.length;
 		const documentsInDock = currentDocuments.filter((doc) =>
 			isDocumentInDock(doc)
