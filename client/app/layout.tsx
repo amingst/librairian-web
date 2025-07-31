@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
 import { ThemeProvider } from '../lib/context/ThemeContext';
 import { NewsSourcesProvider } from '@/lib/context/NewsSourceContext';
+import Header from '@/components/layout/Header';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,6 +37,7 @@ export default function RootLayout({
 						<DocumentDockProvider>
 							<NewsDockProvider>
 								<NewsSourcesProvider>
+									<Header />
 									{children}
 								</NewsSourcesProvider>
 							</NewsDockProvider>

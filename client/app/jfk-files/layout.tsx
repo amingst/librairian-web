@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Inter } from 'next/font/google';
-// import { AuthProvider } from '../../lib/context/AuthContext';
 import {
 	DocumentGroupProvider,
 	useDocumentGroups,
@@ -11,6 +10,7 @@ import { DocumentDock } from '../../components/ui/DocumentDock';
 import GlobalDocumentGroupFilter from '../../components/layout/GlobalDocumentGroupFilter';
 import Button from '@mui/material/Button';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import Header from '@/components/layout/Header';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -77,64 +77,11 @@ export default function JFKFilesLayout({
 	return (
 		<div className='jfk-files-layout'>
 			{/* <AuthProvider> */}
-			<DocumentGroupProvider>
-				<div
-					className={`${inter.className} flex flex-col min-h-screen`}
-				>
-					<header
-						style={{
-							background:
-								'linear-gradient(to right, #4f46e5, #9333ea)',
-							color: 'white',
-							padding: '12px 16px',
-							boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-							position: 'relative',
-							width: '100%',
-						}}
-					>
-						<div
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								maxWidth: '1280px',
-								margin: '0 auto',
-								width: '100%',
-								position: 'relative',
-							}}
-						>
-							<a
-								href='/jfk-files'
-								style={{
-									display: 'block',
-									flexShrink: 0,
-									marginRight: '16px',
-									fontSize: '28px',
-									fontWeight: 200,
-									letterSpacing: '0.05em',
-									textTransform: 'uppercase',
-									textDecoration: 'none',
-									color: 'white',
-								}}
-							>
-								LIBRΛIRIΛN
-							</a>
-							<div
-								style={{
-									marginLeft: 'auto',
-									display: 'flex',
-									alignItems: 'center',
-									gap: '8px',
-								}}
-							>
-								<GlobalDocumentGroupFilter />
-								<ResetFilterButton />
-							</div>
-						</div>
-					</header>
-					{children}
-					<DocumentDock />
-				</div>
-			</DocumentGroupProvider>
+			<div className={`${inter.className} flex flex-col min-h-screen`}>
+				{/* <Header /> */}
+				{children}
+				<DocumentDock />
+			</div>
 			{/* </AuthProvider> */}
 		</div>
 	);
