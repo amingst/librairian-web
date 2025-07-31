@@ -37,7 +37,11 @@ const Header = () => {
 				left: 0,
 				right: 0,
 				width: '100%',
-				zIndex: 1000,
+				zIndex: 1050,
+				overflow: 'visible',
+				height: '64px', // Fixed height matching the body padding-top
+				display: 'flex',
+				alignItems: 'center',
 			}}
 		>
 			<div
@@ -50,7 +54,7 @@ const Header = () => {
 				}}
 			>
 				<div className='flex items-center gap-6'>
-					<a
+					<Link
 						href='/jfk-files'
 						style={{
 							display: 'block',
@@ -63,8 +67,8 @@ const Header = () => {
 							color: 'white',
 						}}
 					>
-						LIBRΛIRIΛN
-					</a>
+						ΛLΞXΛNDRIΛ
+					</Link>
 				</div>
 
 				<div
@@ -86,7 +90,7 @@ const Header = () => {
 											href='/jfk-files'
 											className='text-sm font-medium text-foreground hover:text-primary transition-colors'
 										>
-											Documents
+											LIBRΛIRIΛN
 										</Link>
 									</NavigationMenuLink>
 								</NavigationMenuItem>
@@ -96,12 +100,12 @@ const Header = () => {
 											href='/news'
 											className='text-sm font-medium text-foreground hover:text-primary transition-colors'
 										>
-											News
+											PHΛROS
 										</Link>
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 								<NavigationMenuItem>
-									<div className='ml-2'>
+									<div className='ml-2 relative z-[1100]'>
 										<ThemeToggle />
 									</div>
 								</NavigationMenuItem>

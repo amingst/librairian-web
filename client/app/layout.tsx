@@ -37,16 +37,20 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<DocumentGroupProvider>
-						<DocumentDockProvider>
-							<NewsDockProvider>
-								<NewsSourcesProvider>
-									<Header />
-									{children}
-								</NewsSourcesProvider>
-							</NewsDockProvider>
-						</DocumentDockProvider>
-					</DocumentGroupProvider>
+					<div className="app-container relative">
+						<DocumentGroupProvider>
+							<DocumentDockProvider>
+								<NewsDockProvider>
+									<NewsSourcesProvider>
+										<Header />
+										<div className="app-content" style={{ position: 'relative', zIndex: 1 }}>
+											{children}
+										</div>
+									</NewsSourcesProvider>
+								</NewsDockProvider>
+							</DocumentDockProvider>
+						</DocumentGroupProvider>
+					</div>
 				</ThemeProvider>
 				{/* </AuthProvider> */}
 			</body>

@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 		<div className='news-layout w-full h-[calc(100vh-64px)] flex flex-col'>
 			<div className={`${inter.className} flex-1 flex overflow-hidden`}>
 				{/* Fixed sidebar */}
-				<aside className='w-56 flex-shrink-0 h-full overflow-hidden dark:bg-gray-800 bg-gray-50 border-r border-gray-200 dark:border-gray-700'>
+				<aside className='w-56 flex-shrink-0 h-full overflow-hidden bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800'>
 					<NewsSidebar />
 				</aside>
 

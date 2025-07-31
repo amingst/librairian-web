@@ -8,8 +8,10 @@ export function NewsSidebar() {
 	const pathname = usePathname();
 
 	return (
-		<div className='h-full flex flex-col p-4 dark:text-gray-100 text-gray-800'>
-			<div className='text-xl font-bold mb-4'>News Navigator</div>
+		<div className='h-full flex flex-col p-4 text-sidebar-foreground'>
+			<div className='text-xl font-bold mb-4 text-purple-600 dark:text-purple-400'>
+				PHΛROS
+			</div>
 
 			<nav className='flex-1 overflow-hidden'>
 				<ul
@@ -19,10 +21,10 @@ export function NewsSidebar() {
 					<li>
 						<Link
 							href='/news'
-							className={`block p-2 rounded ${
+							className={`block p-2 rounded transition-colors ${
 								pathname === '/news'
-									? 'dark:bg-blue-900 bg-blue-100 dark:text-blue-200 text-blue-700'
-									: 'dark:hover:bg-gray-700 hover:bg-gray-200'
+									? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 font-medium'
+									: 'hover:bg-muted hover:text-purple-600 dark:hover:text-purple-400'
 							}`}
 						>
 							Headlines
@@ -31,7 +33,7 @@ export function NewsSidebar() {
 					<li>
 						<Link
 							href='#'
-							className='block p-2 rounded dark:hover:bg-gray-700 hover:bg-gray-200'
+							className='block p-2 rounded transition-colors hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-300'
 						>
 							Sources
 						</Link>
@@ -39,7 +41,7 @@ export function NewsSidebar() {
 					<li>
 						<Link
 							href='#'
-							className='block p-2 rounded dark:hover:bg-gray-700 hover:bg-gray-200'
+							className='block p-2 rounded transition-colors hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-300'
 						>
 							Topics
 						</Link>
@@ -47,7 +49,7 @@ export function NewsSidebar() {
 					<li>
 						<Link
 							href='#'
-							className='block p-2 rounded dark:hover:bg-gray-700 hover:bg-gray-200'
+							className='block p-2 rounded transition-colors hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-300'
 						>
 							Saved Articles
 						</Link>
@@ -55,8 +57,8 @@ export function NewsSidebar() {
 				</ul>
 			</nav>
 
-			<div className='mt-auto pt-4 border-t dark:border-gray-700 border-gray-300'>
-				<div className='text-sm dark:text-gray-400 text-gray-500'>
+			<div className='mt-auto pt-4 border-t border-sidebar-border'>
+				<div className='text-sm text-muted-foreground'>
 					News Navigator v1.0
 				</div>
 			</div>
