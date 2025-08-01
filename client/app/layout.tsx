@@ -2,13 +2,9 @@ import React from 'react';
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-// import { AuthProvider } from '../lib/context/AuthContext';
-import { DocumentDockProvider } from '../lib/context/DocumentDockContext';
-import { NewsDockProvider } from '../lib/context/NewsDockContext';
-import Link from 'next/link';
-import { DocumentGroupProvider } from '../lib/context/DocumentGroupContext';
 import { ThemeProvider } from '../lib/context/ThemeContext';
-import { NewsSourcesProvider } from '@/lib/context/NewsSourceContext';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import Header from '@/components/layout/Header';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -24,35 +20,26 @@ export default function RootLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<html
-			lang='en'
-			suppressHydrationWarning
-			className='h-full overflow-hidden'
-		>
-			<body className={`${inter.className} h-full overflow-hidden`}>
-				{/* <AuthProvider> */}
+		<html lang='en' suppressHydrationWarning className='h-full'>
+			<body className={`${inter.className} h-full`}>
 				<ThemeProvider
 					attribute='class'
 					defaultTheme='dark'
 					enableSystem
 					disableTransitionOnChange
 				>
-					<div className="app-container relative">
-						<DocumentGroupProvider>
-							<DocumentDockProvider>
-								<NewsDockProvider>
-									<NewsSourcesProvider>
-										<Header />
-										<div className="app-content" style={{ position: 'relative', zIndex: 1 }}>
-											{children}
-										</div>
-									</NewsSourcesProvider>
-								</NewsDockProvider>
-							</DocumentDockProvider>
-						</DocumentGroupProvider>
-					</div>
+					<SidebarProvider>
+						<AppSidebar />
+						<SidebarInset className='flex flex-col h-full'>
+							<div className='sticky top-0 z-10 bg-background border-b'>
+								<Header />
+							</div>
+							<div className='flex-1 overflow-auto'>
+								{children}
+							</div>
+						</SidebarInset>
+					</SidebarProvider>
 				</ThemeProvider>
-				{/* </AuthProvider> */}
 			</body>
 		</html>
 	);

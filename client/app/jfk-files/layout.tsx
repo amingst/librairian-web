@@ -6,11 +6,11 @@ import {
 	DocumentGroupProvider,
 	useDocumentGroups,
 } from '../../lib/context/DocumentGroupContext';
+import { DocumentDockProvider } from '../../lib/context/DocumentDockContext';
 import { DocumentDock } from '../../components/ui/DocumentDock';
 import GlobalDocumentGroupFilter from '../../components/layout/GlobalDocumentGroupFilter';
 import Button from '@mui/material/Button';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import Header from '@/components/layout/Header';
 import DocumentSidebar from '@/components/layout/DocumentSidebar';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -72,30 +72,29 @@ function ResetFilterButton() {
 
 export default function JFKFilesLayout({
 	children,
+	sidebar,
 }: {
 	children: React.ReactNode;
+	sidebar: React.ReactNode;
 }) {
 	return (
-		<div className='jfk-files-layout w-full h-[calc(100vh-64px)] flex flex-col'>
-			<div className={`${inter.className} flex-1 flex overflow-hidden`}>
-				{/* Fixed sidebar */}
-				<aside className='w-56 flex-shrink-0 h-full overflow-hidden bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800'>
-					<DocumentSidebar />
-				</aside>
+		<DocumentGroupProvider>
+			<DocumentDockProvider>
+				<div className='flex flex-col h-full relative'>
+					{/* Include the parallel route data */}
+					{sidebar}
 
-				{/* Main content area with its own scrolling */}
-				<main className='flex-1 flex flex-col overflow-hidden'>
-					{/* Scrollable content area */}
-					<div className='flex-1 overflow-y-auto pb-16'>
+					{/* Main content area with bottom padding for dock */}
+					<div className='flex-1 overflow-auto p-4 pb-20'>
 						{children}
 					</div>
 
 					{/* Fixed dock at the bottom */}
-					<div className='absolute bottom-0 left-56 right-0'>
+					<div className='fixed bottom-0 left-0 right-0 z-10 border-t bg-background md:ml-64'>
 						<DocumentDock />
 					</div>
-				</main>
-			</div>
-		</div>
+				</div>
+			</DocumentDockProvider>
+		</DocumentGroupProvider>
 	);
 }

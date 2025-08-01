@@ -43,6 +43,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Sheet, SheetContent, SheetTrigger } from './sheet';
 import { ScrollArea } from './scroll-area';
+import { useSidebar } from './sidebar';
 import BriefingPanel from './BriefingPanel';
 import SortableNewsItem from './SortableNewsItem';
 import NewsAudioPlayerHeader from './NewsAudioPlayerHeader';
@@ -58,6 +59,7 @@ export function NewsDock() {
 		setQueue,
 		addToQueue,
 	} = useNewsDock();
+	const { state: sidebarState, isMobile } = useSidebar();
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [articleDetails, setArticleDetails] = useState<Record<string, any>>(
@@ -831,9 +833,10 @@ export function NewsDock() {
 	// Store conditional UI in variables
 	let minimalDock = null;
 	if (queue.length === 0 && !showPlaylist && playlist.length > 0) {
+		// NewsDock should be on the right side like DocumentDock
 		minimalDock = (
 			<>
-				<div className='fixed bottom-0 left-0 p-2 bg-muted border-t border-r border-border rounded-tr-lg shadow-lg z-9100 flex items-center gap-2'>
+				<div className='fixed bottom-0 right-0 p-2 bg-muted border-t border-l border-border rounded-tl-lg shadow-lg z-9100 flex items-center gap-2'>
 					<button
 						onClick={() => setShowPlaylist(true)}
 						className='px-3 py-1.5 bg-muted text-foreground rounded border border-border text-sm flex items-center cursor-pointer hover:bg-secondary transition-colors'

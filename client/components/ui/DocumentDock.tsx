@@ -52,6 +52,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Sheet, SheetContent, SheetTrigger } from './sheet';
 import { ScrollArea } from './scroll-area';
+import { useSidebar } from './sidebar';
 import InvestigationsPanel from './InvestigationsPanel';
 import SortableDocumentItem from './SortableDocumentItem';
 import AudioPlayerHeader from './AudioPlayerHeader';
@@ -69,6 +70,7 @@ export function DocumentDock() {
 		setQueue,
 		addToQueue,
 	} = useDocumentDock();
+	const { state: sidebarState, isMobile } = useSidebar();
 	const [isOpen, setIsOpen] = useState(false);
 	const [documentDetails, setDocumentDetails] = useState<Record<string, any>>(
 		{}
@@ -1194,9 +1196,19 @@ export function DocumentDock() {
 	// Store conditional UI in variables, not in conditional returns
 	let minimalDock = null;
 	if (queue.length === 0 && !showPlaylist && playlist.length > 0) {
+		// Calculate positioning based on sidebar state
+		const sidebarOffset =
+			!isMobile && sidebarState === 'expanded' ? 'left-64' : 'left-0';
+		const dockWidth =
+			!isMobile && sidebarState === 'expanded'
+				? 'w-[calc(100%-16rem)]'
+				: 'w-full';
+
 		minimalDock = (
 			<>
-				<div className='fixed bottom-0 right-0 p-2 bg-muted border-t border-l border-border rounded-tl-lg shadow-lg z-9100 flex items-center gap-2'>
+				<div
+					className={`fixed bottom-0 right-0 p-2 bg-muted border-t border-l border-border rounded-tl-lg shadow-lg z-9100 flex items-center gap-2 ${sidebarOffset}`}
+				>
 					<button
 						onClick={() => setShowPlaylist(true)}
 						className='px-3 py-1.5 bg-muted text-foreground rounded border border-border text-sm flex items-center cursor-pointer hover:bg-secondary transition-colors'
