@@ -2,6 +2,7 @@ import { ArticleGrouperTool } from '../tools/ArticleGrouper.js';
 import { TextAnalysisTool } from '../tools/TextAnalysis.js';
 import { CurrentEventsDetectorTool } from '../tools/CurrentEventsDetector.js';
 import { BatchArticleExtractorTool } from '../tools/BatchArticleExtractor.js';
+import { NewsBriefingTool } from '../tools/NewsBriefingTool.js';
 import { TYPES } from './symbols.js';
 import type { IMCPTool } from '@shared/backend';
 
@@ -28,4 +29,5 @@ export const TOOL_MAP: ToolMap = {
 		CurrentEventsDetectorTool as unknown as ToolConstructor,
 	BatchArticleExtractor:
 		BatchArticleExtractorTool as unknown as ToolConstructor,
+	NewsBriefing: NewsBriefingTool as unknown as ToolConstructor,
 };

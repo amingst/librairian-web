@@ -15,6 +15,8 @@ const GroupArticlesSchema = z.object({
 			minArticlesPerGroup: z.number().optional().default(2),
 			useOpenAI: z.boolean().optional().default(true),
 			extractFullContent: z.boolean().optional().default(true),
+			minContentLength: z.number().optional().default(100),
+			skipContentFiltering: z.boolean().optional().default(false),
 		})
 		.optional()
 		.default({}),
@@ -149,10 +151,16 @@ export class ArticleGrouperTool extends MCPTool {
 			});
 
 			// Filter out articles without sufficient content for better analysis
-			const validArticles = articlesWithContent.filter(
-				(article) =>
-					article.fullContent && article.fullContent.length > 100
-			);
+			const validArticles = options.skipContentFiltering
+				? articlesWithContent
+				: articlesWithContent.filter((article) => {
+						const contentToCheck =
+							article.fullContent || article.excerpt || '';
+						return (
+							contentToCheck.length >
+							(options.minContentLength || 100)
+						);
+				  });
 
 			console.log(
 				`📊 Analyzing ${

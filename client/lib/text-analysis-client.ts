@@ -138,6 +138,41 @@ export class TextAnalysisMCPClient {
 		}
 	}
 
+	async createNewsBriefing(
+		articles: NewsArticlePreview[],
+		options: {
+			briefingType?: 'executive' | 'detailed' | 'summary';
+			targetAudience?: 'general' | 'business' | 'technical' | 'academic';
+			includeSourceAttribution?: boolean;
+			maxSections?: number;
+			prioritizeTopics?: string[];
+		} = {}
+	): Promise<any> {
+		if (!this.client || !this.isConnected) {
+			throw new Error('Client not connected');
+		}
+
+		try {
+			const result = await this.client.callTool({
+				name: 'create_news_briefing',
+				arguments: {
+					articles,
+					briefingType: options.briefingType || 'summary',
+					targetAudience: options.targetAudience || 'general',
+					includeSourceAttribution:
+						options.includeSourceAttribution ?? true,
+					maxSections: options.maxSections || 10,
+					prioritizeTopics: options.prioritizeTopics,
+				},
+			});
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error('Error creating news briefing:', error);
+			throw error;
+		}
+	}
+
 	private parseToolResult(result: any): any {
 		if (result?.content?.[0]?.text) {
 			try {

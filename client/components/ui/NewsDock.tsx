@@ -13,6 +13,7 @@ import { useNewsDock, NewsArticleItem } from '@/lib/context/NewsDockContext';
 import {
 	X,
 	ChevronUp,
+	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	GripVertical,
@@ -47,6 +48,7 @@ import { useSidebar } from './sidebar';
 import BriefingPanel from './BriefingPanel';
 import SortableNewsItem from './SortableNewsItem';
 import NewsAudioPlayerHeader from './NewsAudioPlayerHeader';
+import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
 
@@ -100,6 +102,11 @@ export function NewsDock() {
 		number | null
 	>(null);
 	const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
+	const [showBriefing, setShowBriefing] = useState<boolean>(false);
+	const [currentBriefing, setCurrentBriefing] = useState<any>(null);
+	const [expandedSources, setExpandedSources] = useState<Set<number>>(
+		new Set()
+	);
 	const [activeId, setActiveId] = useState<string | null>(null);
 
 	// Load saved playlists from localStorage
@@ -124,6 +131,26 @@ export function NewsDock() {
 			...prev,
 			[itemId]: prev[itemId] === section ? null : section,
 		}));
+	};
+
+	// Helper function to toggle sources dropdown
+	const toggleSourcesDropdown = (sectionIndex: number) => {
+		setExpandedSources((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(sectionIndex)) {
+				newSet.delete(sectionIndex);
+			} else {
+				newSet.add(sectionIndex);
+			}
+			return newSet;
+		});
+	};
+
+	// Helper function to truncate article titles
+	const truncateTitle = (title: string, maxLength: number = 50) => {
+		return title.length > maxLength
+			? title.substring(0, maxLength) + '...'
+			: title;
 	};
 
 	// Configure sensors for drag and drop
@@ -779,6 +806,113 @@ export function NewsDock() {
 		}
 	};
 
+	// Function to generate news briefing using MCP
+	const generateNewsBriefing = async () => {
+		if (queue.length === 0) return;
+
+		setReportStatus('generating');
+		setReportProgress('Connecting to text analysis service...');
+		setReportUrl(null);
+
+		const textAnalysisClient = new TextAnalysisMCPClient();
+
+		try {
+			// Connect to the MCP client
+			await textAnalysisClient.connect();
+			setReportProgress('Converting articles for analysis...');
+
+			// Convert queue items to NewsArticlePreview format
+			const articles = queue.map((item) => {
+				const details = articleDetails[item.id];
+				return {
+					id: item.id,
+					title: item.title,
+					link: item.url,
+					excerpt: details?.summary || item.excerpt || '',
+					source: {
+						site:
+							item.source?.site || item.source?.name || 'Unknown',
+						domain:
+							item.source?.domain || new URL(item.url).hostname,
+					},
+					publishDate: item.publishedAt,
+				};
+			});
+
+			setReportProgress('Generating news briefing with AI...');
+
+			// Call the news briefing tool
+			const briefing = await textAnalysisClient.createNewsBriefing(
+				articles,
+				{
+					briefingType: 'summary',
+					targetAudience: 'general',
+					maxSections: 8,
+				}
+			);
+
+			console.log('Generated briefing:', briefing);
+
+			// Store and display the briefing
+			setCurrentBriefing(briefing);
+			setExpandedSources(new Set()); // Reset expanded sources for new briefing
+			setReportProgress('News briefing generated successfully!');
+			setReportStatus('ready');
+			setShowBriefing(true);
+
+			// TODO: Replace simple array with proper data structure (indexed by date, searchable, with metadata, etc.)
+			// Save briefing to localStorage array for history
+			try {
+				const existingBriefings = JSON.parse(
+					localStorage.getItem('savedNewsBriefings') || '[]'
+				);
+				const briefingWithId = {
+					...briefing,
+					id: Date.now().toString(), // Simple ID for now
+					savedAt: new Date().toISOString(),
+				};
+				existingBriefings.push(briefingWithId);
+
+				// Keep only the most recent 50 briefings to prevent localStorage bloat
+				const trimmedBriefings = existingBriefings.slice(-50);
+
+				localStorage.setItem(
+					'savedNewsBriefings',
+					JSON.stringify(trimmedBriefings)
+				);
+				console.log(
+					`Saved briefing to localStorage. Total saved: ${trimmedBriefings.length}`
+				);
+			} catch (storageError) {
+				console.error(
+					'Error saving briefing to localStorage:',
+					storageError
+				);
+			}
+
+			// Keep the legacy single briefing storage for now (can be removed later)
+			localStorage.setItem('lastNewsBriefing', JSON.stringify(briefing));
+		} catch (error) {
+			console.error('Error generating news briefing:', error);
+			setReportStatus('error');
+			setReportProgress(
+				error instanceof Error
+					? error.message
+					: 'Unknown error occurred'
+			);
+		} finally {
+			// Always disconnect the client
+			try {
+				await textAnalysisClient.disconnect();
+			} catch (disconnectError) {
+				console.error(
+					'Error disconnecting text analysis client:',
+					disconnectError
+				);
+			}
+		}
+	};
+
 	// Handle audio playback for either podcast or report
 	const togglePlayPause = (playerType: 'podcast' | 'report') => {
 		if (!audioRef.current) return;
@@ -1128,9 +1262,7 @@ export function NewsDock() {
 												<span>Podcast</span>
 											</button>
 											<button
-												onClick={
-													generateInvestigativeReport
-												}
+												onClick={generateNewsBriefing}
 												disabled={
 													(reportStatus as string) ===
 														'generating' ||
@@ -1138,7 +1270,7 @@ export function NewsDock() {
 														'generating' ||
 													queue.length === 0
 												}
-												className='px-4 py-2 bg-destructive text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
+												className='px-4 py-2 bg-blue-600 text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
 											>
 												<FileSearch
 													size={14}
@@ -1516,6 +1648,166 @@ export function NewsDock() {
 				setIsPlaying={setIsPlaying}
 				setCurrentPlayer={setCurrentPlayer}
 			/>
+
+			{/* News Briefing Modal */}
+			{showBriefing && currentBriefing && (
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
+					<div className='bg-background border rounded-lg max-w-4xl max-h-[80vh] overflow-hidden flex flex-col'>
+						<div className='flex items-center justify-between p-4 border-b'>
+							<h2 className='text-xl font-semibold'>
+								News Briefing
+							</h2>
+							<button
+								onClick={() => {
+									setShowBriefing(false);
+									setExpandedSources(new Set()); // Reset expanded sources when closing
+								}}
+								className='text-muted-foreground hover:text-foreground'
+							>
+								<X size={20} />
+							</button>
+						</div>
+						<div className='flex-1 overflow-auto p-4'>
+							<div className='space-y-6'>
+								<div>
+									<h3 className='text-lg font-medium mb-2'>
+										{currentBriefing.title}
+									</h3>
+									<p className='text-sm text-muted-foreground mb-4'>
+										{currentBriefing.summary}
+									</p>
+									<div className='text-xs text-muted-foreground'>
+										Generated:{' '}
+										{new Date(
+											currentBriefing.generatedAt
+										).toLocaleString()}{' '}
+										| Articles:{' '}
+										{currentBriefing.totalArticles} |
+										Sources:{' '}
+										{currentBriefing.sources.join(', ')}
+									</div>
+								</div>
+
+								{currentBriefing.sections.map(
+									(section: any, index: number) => (
+										<div
+											key={index}
+											className='border rounded-lg p-4 space-y-3'
+										>
+											<div className='flex items-center gap-2'>
+												<span
+													className={`px-2 py-1 rounded text-xs ${
+														section.importance ===
+														'high'
+															? 'bg-red-100 text-red-800'
+															: section.importance ===
+															  'medium'
+															? 'bg-yellow-100 text-yellow-800'
+															: 'bg-gray-100 text-gray-800'
+													}`}
+												>
+													{section.importance.toUpperCase()}
+												</span>
+												<h4 className='font-medium'>
+													{section.headline}
+												</h4>
+											</div>
+											<p className='text-sm text-muted-foreground'>
+												{section.summary}
+											</p>
+											<ul className='text-sm space-y-1'>
+												{section.keyPoints.map(
+													(
+														point: string,
+														pointIndex: number
+													) => (
+														<li
+															key={pointIndex}
+															className='flex items-start gap-2'
+														>
+															<span className='text-primary mt-1'>
+																•
+															</span>
+															<span>{point}</span>
+														</li>
+													)
+												)}
+											</ul>
+
+											{/* Enhanced Sources Section with Dropdown */}
+											<div className='border-t pt-3'>
+												<button
+													onClick={() =>
+														toggleSourcesDropdown(
+															index
+														)
+													}
+													className='flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-left'
+												>
+													<span>
+														Sources (
+														{section.sources.length}
+														)
+													</span>
+													<ChevronDown
+														size={14}
+														className={`transition-transform ${
+															expandedSources.has(
+																index
+															)
+																? 'rotate-180'
+																: ''
+														}`}
+													/>
+												</button>
+
+												{expandedSources.has(index) && (
+													<div className='mt-2 space-y-2 pl-4 border-l-2 border-border'>
+														{section.sources.map(
+															(
+																source: any,
+																sourceIndex: number
+															) => (
+																<div
+																	key={
+																		sourceIndex
+																	}
+																	className='text-sm'
+																>
+																	<a
+																		href={
+																			source.link
+																		}
+																		target='_blank'
+																		rel='noopener noreferrer'
+																		className='text-blue-600 hover:text-blue-800 hover:underline block'
+																		title={
+																			source.title
+																		}
+																	>
+																		{truncateTitle(
+																			source.title
+																		)}
+																	</a>
+																	<div className='text-xs text-muted-foreground mt-1'>
+																		{
+																			source.source
+																		}
+																	</div>
+																</div>
+															)
+														)}
+													</div>
+												)}
+											</div>
+										</div>
+									)
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</>
 	);
 }
