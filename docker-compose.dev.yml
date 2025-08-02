@@ -16,6 +16,7 @@ services:
             - HOST=0.0.0.0
             - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
             - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
+            - REDIS_URL=redis://redis:6379
         env_file:
             - server/news-scraper/.env
         volumes:
@@ -39,6 +40,7 @@ services:
             - PORT=3002
             - HOST=0.0.0.0
             - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
+            - REDIS_URL=redis://redis:6379
         env_file:
             - server/text-analysis/.env
         volumes:
@@ -63,6 +65,7 @@ services:
             - NEXT_TELEMETRY_DISABLED=1
             - HTML_SCRAPER_URL=http://server-news-scraper-dev:3001
             - TEXT_ANALYSIS_URL=http://server-text-analysis-dev:3002
+            - REDIS_URL=redis://redis:6379
         volumes:
             - ./client/src:/app/client/src
             - ./shared:/app/shared
@@ -71,8 +74,27 @@ services:
             - server-news-scraper-dev
             - server-text-analysis-dev
             - postgres
+            - redis
         networks:
             - news-scraper-network
+
+    # Redis Cache (Development)
+    redis:
+        image: redis:latest
+        container_name: redis
+        restart: unless-stopped
+        ports:
+            - '6379:6379'
+        command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - redis_dev_data:/data
 
     # PostgreSQL Database (Development)
     postgres:
@@ -117,6 +139,8 @@ services:
 volumes:
     postgres_dev_data:
     pgadmin_dev_data:
+    redis_dev_data:
+        driver: local
 
 networks:
     news-scraper-network:
