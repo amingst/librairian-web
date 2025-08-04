@@ -23,7 +23,9 @@ class NewsScraper {
 		@inject(TYPES.FirecrawlNewsHomepage)
 		private readonly firecrawlNewsHomepage: IMCPTool,
 		@inject(MCPHttpServer) private readonly server: MCPHttpServer,
-		@inject(TYPES.Config) private readonly config: Config
+		@inject(TYPES.Config) private readonly config: Config,
+		@inject(TYPES.StartHomepageFirecrawlJob)
+		private readonly startHomepageFirecrawlJob: IMCPTool
 	) {
 		this.setupShutdownHandlers();
 	}
@@ -37,6 +39,7 @@ class NewsScraper {
 			this.newsHomepage,
 			this.newsPipeline,
 			this.firecrawlNewsHomepage,
+			this.startHomepageFirecrawlJob, // Ensure this is included
 		];
 	}
 

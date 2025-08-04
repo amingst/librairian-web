@@ -8,6 +8,7 @@ import { NewsPipelineTool } from '../tools/NewsPipelineTool.js';
 import { FirecrawlNewsHomepageTool } from '../tools/FirecrawlNewsHomepage.js';
 import { TYPES } from './symbols.js';
 import { PrismaClient } from '@prisma/client'; // Import PrismaClient
+import { StartHomepageFirecrawlJob } from '../tools/StartHomepageFirecrawlJob.js';
 
 export { TYPES };
 
@@ -30,4 +31,5 @@ export const TOOL_MAP: ToolMap = {
 	NewsHomepage: NewsHomepageTool,
 	NewsPipeline: NewsPipelineTool,
 	FirecrawlNewsHomepage: FirecrawlNewsHomepageTool,
+	StartHomepageFirecrawlJob: StartHomepageFirecrawlJob, // Ensure this matches the class name
 };

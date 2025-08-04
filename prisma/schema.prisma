@@ -151,6 +151,7 @@ model NewsSource {
   @@index([isActive])
   @@index([isDisabled])
   NewsArticle NewsArticle[]
+  Post        Post[]
 }
 
 model NewsArticle {
@@ -193,4 +194,23 @@ model ArticleMedia {
 enum MediaType {
   VIDEO
   IMAGE
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  sourceId    String
+  name        String
+  date        DateTime
+  description String?  @db.Text
+  webUrl      String?
+  nsfw        Boolean  @default(false)
+  tagItems    String[]
+  post        Json?
+  blockchain  String
+
+  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([name])
+  @@index([date])
+  @@index([blockchain])
 }

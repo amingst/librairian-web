@@ -29,7 +29,7 @@
     "clean": "rm -rf node_modules && rm -rf package-lock.json && npm run clean:all"
   },
   "dependencies": {
-    "@prisma/client": "^6.12.0",
+    "@prisma/client": "^6.13.0",
     "next": "15.4.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "prisma": "^6.12.0",
+    "prisma": "^6.13.0",
     "tsx": "^4.7.0"
   }
 }
