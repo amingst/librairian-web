@@ -327,6 +327,90 @@ export default function NewsScraperExample() {
 		}
 	};
 
+	// Start HTML scraper job (local parsing, no Firecrawl)
+	const handleStartHtmlScraperJob = async () => {
+		if (selection.selectedSources.length === 0) {
+			alert('Please select at least one news source');
+			return;
+		}
+
+		setScraping(true);
+		try {
+			// Get URLs for the selected sources
+			const selectedSourceDetails = await Promise.all(
+				selection.selectedSources.map((id) =>
+					mcp.getNewsSourceDetails(id)
+				)
+			);
+
+			const urls = selectedSourceDetails.map((source) => source.url);
+			console.log(
+				`🚀 Starting HTML scraper job for ${urls.length} URLs:`,
+				urls
+			);
+
+			// Start the HTML scraping job using the new local parser
+			const result = await mcp.startHomepageHtmlScraperJob({
+				urls: urls,
+				limit: 20, // Get up to 20 articles per site
+			});
+
+			console.log('✅ Completed HTML scraper job:', result);
+
+			alert(
+				`HTML scraping completed!\nProcessed: ${result.totalArticlesProcessed} articles\nSources processed: ${result.results.length}\n\nArticles have been saved to the database.`
+			);
+
+			// Optionally refresh the data
+			await handleLoadFromDatabase();
+		} catch (error) {
+			console.error('❌ Failed to start HTML scraper job:', error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			alert(`Failed to start HTML scraper job: ${errorMessage}`);
+		} finally {
+			setScraping(false);
+		}
+	};
+
+	// Extract article content using HTML scraper (local parsing, no Firecrawl)
+	const handleStartHtmlArticleExtractionJob = async () => {
+		setScraping(true);
+		try {
+			console.log(`🚀 Starting HTML article extraction job...`);
+
+			// Start the HTML article extraction job
+			const result = await mcp.startArticleHtmlScraperJob({
+				limit: 50, // Process up to 50 posts at a time
+			});
+
+			console.log('✅ Completed HTML article extraction job:', result);
+
+			alert(
+				`HTML article extraction completed!\nProcessed: ${
+					result.totalArticlesProcessed
+				} articles\nSuccessful extractions: ${
+					result.results.filter((r) => r.success).length
+				}\n\nArticle content has been saved to the database.`
+			);
+
+			// Optionally refresh the data
+			await handleLoadFromDatabase();
+		} catch (error) {
+			console.error(
+				'❌ Failed to start HTML article extraction job:',
+				error
+			);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			alert(
+				`Failed to start HTML article extraction job: ${errorMessage}`
+			);
+		} finally {
+			setScraping(false);
+		}
+	};
+
 	const handleSelectByCategory = (category: string) => {
 		const sourcesInCategory = mcp.sources
 			.filter((source: any) => source.category === category)
@@ -580,6 +664,25 @@ export default function NewsScraperExample() {
 							className='w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
 							Extract Full Article Content from Database
+						</button>
+
+						{/* HTML Article Extraction button (local parsing) */}
+						<button
+							onClick={handleStartHtmlArticleExtractionJob}
+							disabled={scraping}
+							className='w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+						>
+							Extract Article Content (HTML) - Free & Fast
+						</button>
+
+						{/* HTML Scraper button (local parsing) */}
+						<button
+							onClick={handleStartHtmlScraperJob}
+							disabled={scraping || selection.count === 0}
+							className='w-full px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+						>
+							Start HTML Scraper Job ({selection.count} sources) -
+							Free & Fast
 						</button>
 
 						{selection.count > 2 && (

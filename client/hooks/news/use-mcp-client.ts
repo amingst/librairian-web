@@ -62,6 +62,29 @@ interface UseMCPClientActions {
 		status: string;
 		message: string;
 	}>;
+	startHomepageHtmlScraperJob: (params: {
+		urls: string[];
+		limit?: number;
+	}) => Promise<{
+		message: string;
+		totalArticlesProcessed: number;
+		results: Array<{ url: string; articles: number; error?: string }>;
+		completedAt: string;
+	}>;
+	startArticleHtmlScraperJob: (params: {
+		postIds?: string[];
+		limit?: number;
+	}) => Promise<{
+		message: string;
+		totalArticlesProcessed: number;
+		results: Array<{
+			url: string;
+			postId: string;
+			success: boolean;
+			error?: string;
+		}>;
+		completedAt: string;
+	}>;
 	getNewsSourceDetails: (sourceId: string) => Promise<NewsSourceDetails>;
 }
 
@@ -338,6 +361,54 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		[]
 	);
 
+	const startHomepageHtmlScraperJob = useCallback(
+		async (params: { urls: string[]; limit?: number }) => {
+			setLoading(true);
+			setError(null);
+
+			try {
+				const result = await mcpClient.startHomepageHtmlScraperJob(
+					params
+				);
+				return result;
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: 'Failed to start HTML scraper job';
+				setError(errorMessage);
+				throw error;
+			} finally {
+				setLoading(false);
+			}
+		},
+		[]
+	);
+
+	const startArticleHtmlScraperJob = useCallback(
+		async (params: { postIds?: string[]; limit?: number }) => {
+			setLoading(true);
+			setError(null);
+
+			try {
+				const result = await mcpClient.startArticleHtmlScraperJob(
+					params
+				);
+				return result;
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: 'Failed to start HTML article extraction job';
+				setError(errorMessage);
+				throw error;
+			} finally {
+				setLoading(false);
+			}
+		},
+		[]
+	);
+
 	return {
 		...state,
 		connect,
@@ -349,6 +420,8 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		searchContent,
 		startHomepageFirecrawlJob,
 		startArticleExtractFirecrawlJob,
+		startHomepageHtmlScraperJob,
+		startArticleHtmlScraperJob,
 		getNewsSourceDetails,
 	};
 }

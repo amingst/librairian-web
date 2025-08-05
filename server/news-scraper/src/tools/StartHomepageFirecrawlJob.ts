@@ -91,11 +91,10 @@ export class StartHomepageFirecrawlJob extends MCPTool {
 			// Setup webhook config
 			// For local development, you would need a webhook service like ngrok
 			// For production, use a real webhook endpoint
-			const baseUrl = `https://c28bf2c850b4.ngrok-free.app	`;
 			const webhookConfig = {
 				url:
-					process.env.WEBHOOK_URL ||
-					`${baseUrl}/api/webhooks/firecrawl`,
+					config.webhooks.homepage ||
+					`${config.webhookBaseUrl}/api/webhooks/firecrawl/homepage`,
 				events: ['page', 'completed', 'failed'],
 				metadata: {
 					jobType: 'homepage_scrape',
@@ -436,70 +435,71 @@ export class StartHomepageFirecrawlJob extends MCPTool {
 					);
 
 					// Try to directly access the result in case it's just the data without wrapper
-					if (payload && typeof payload === 'object') {
-						let result = payload;
-						let sourceUrl = '';
-						let articles = [];
+					// if (payload && typeof payload === 'object') {
+					// 	let result = payload;
+					// 	let sourceUrl = '';
+					// 	let articles = [];
 
-						// Try to find the source URL
-						if (payload.metadata?.sourceURL) {
-							sourceUrl = payload.metadata.sourceURL;
-						} else if (payload.sourceURL) {
-							sourceUrl = payload.sourceURL;
-						}
+					// 	// Try to find the source URL
+					// 	if (payload.metadata?.sourceURL) {
+					// 		sourceUrl = payload.metadata.sourceURL;
+					// 	} else if (payload.sourceURL) {
+					// 		sourceUrl = payload.sourceURL;
+					// 	}
 
-						console.log(`Source URL: ${sourceUrl}`);
+					// 	console.log(`Source URL: ${sourceUrl}`);
 
-						// Try to find the articles array
-						if (Array.isArray(payload.extract)) {
-							articles = payload.extract;
-							console.log(
-								`Found ${articles.length} articles in payload.extract`
-							);
-						} else if (
-							payload.data &&
-							Array.isArray(payload.data)
-						) {
-							// Try to find it in data
-							if (
-								payload.data[0] &&
-								Array.isArray(payload.data[0].extract)
-							) {
-								articles = payload.data[0].extract;
-								console.log(
-									`Found ${articles.length} articles in payload.data[0].extract`
-								);
-							}
-						}
+					// 	// Try to find the articles array
+					// 	if (Array.isArray(payload.extract)) {
+					// 		articles = payload.extract;
+					// 		console.log(
+					// 			`Found ${articles.length} articles in payload.extract`
+					// 		);
+					// 	} else if (
+					// 		payload.data &&
+					// 		Array.isArray(payload.data)
+					// 	) {
+					// 		// Try to find it in data
+					// 		if (
+					// 			payload.data[0] &&
+					// 			Array.isArray(payload.data[0].extract)
+					// 		) {
+					// 			articles = payload.data[0].extract;
+					// 			console.log(
+					// 				`Found ${articles.length} articles in payload.data[0].extract`
+					// 			);
+					// 		}
+					// 	}
 
-						// Process the articles if we found any
-						if (articles.length > 0 && sourceUrl) {
-							console.log(
-								`Processing ${articles.length} articles from ${sourceUrl}`
-							);
+					// 	// Process the articles if we found any
+					// 	if (articles.length > 0 && sourceUrl) {
+					// 		console.log(
+					// 			`Processing ${articles.length} articles from ${sourceUrl}`
+					// 		);
 
-							// Process each article
-							for (const article of articles) {
-								if (article && article.link) {
-									try {
-										await this.saveArticleToPost(
-											article,
-											sourceUrl
-										);
-									} catch (error) {
-										console.error(
-											`Error saving article:`,
-											error
-										);
-									}
-								}
-							}
-						} else {
-							console.error(
-								`No articles or source URL found in payload`
-							);
-						}
-					}
+					// 		// Process each article
+					// 		for (const article of articles) {
+					// 			if (article && article.link) {
+					// 				try {
+					// 					await this.saveArticleToPost(
+					// 						article,
+					// 						sourceUrl
+					// 					);
+					// 				} catch (error) {
+					// 					console.error(
+					// 						`Error saving article:`,
+					// 						error
+					// 					);
+					// 				}
+					// 			}
+					// 		}
+					// 	} else {
+					// 		console.error(
+					// 			`No articles or source URL found in payload`
+					// 		);
+					// 	}
+					// }
+					break;
 
 				case 'completed':
 				case 'batch_scrape.completed':
@@ -508,57 +508,96 @@ export class StartHomepageFirecrawlJob extends MCPTool {
 						JSON.stringify(payload, null, 2)
 					);
 
-					// Try to process data from completed event in case it contains articles
-					if (payload && typeof payload === 'object') {
-						// Check if there are results in the completed event
-						let results = [];
-
-						if (Array.isArray(payload.data)) {
-							results = payload.data;
-						} else if (
-							payload.results &&
-							Array.isArray(payload.results)
-						) {
-							results = payload.results;
-						}
-
-						console.log(
-							`Found ${results.length} results in completed event`
+					try {
+						// Fetch the complete job data from Firecrawl API
+						const res = await fetch(
+							`https://api.firecrawl.dev/v1/batch/scrape/${payload.id}`,
+							{
+								method: 'GET',
+								headers: {
+									authorization: `Bearer ${config.firecrawlKey}`,
+								},
+							}
 						);
 
-						// Process each result
-						for (const result of results) {
-							const sourceUrl =
-								result.metadata?.sourceURL || result.sourceURL;
-							let articles = [];
+						if (!res.ok) {
+							console.error(
+								`Failed to fetch job data: ${res.status} ${res.statusText}`
+							);
+							break;
+						}
 
-							if (Array.isArray(result.extract)) {
-								articles = result.extract;
-							}
+						const jobData = await res.json();
+						console.log(
+							`Fetched job data:`,
+							JSON.stringify(jobData, null, 2)
+						);
 
-							if (articles.length > 0 && sourceUrl) {
-								console.log(
-									`Processing ${articles.length} articles from ${sourceUrl} in completed event`
-								);
+						// Process the data array from the job response
+						if (jobData.success && Array.isArray(jobData.data)) {
+							console.log(
+								`Processing ${jobData.data.length} results from completed job`
+							);
 
-								// Process each article
-								for (const article of articles) {
-									if (article && article.link) {
-										try {
-											await this.saveArticleToPost(
-												article,
-												sourceUrl
-											);
-										} catch (error) {
-											console.error(
-												`Error saving article:`,
-												error
+							for (const result of jobData.data) {
+								const sourceUrl =
+									result.metadata?.sourceURL ||
+									result.metadata?.url ||
+									result.url;
+
+								if (!sourceUrl) {
+									console.error(
+										`No source URL found in result:`,
+										result
+									);
+									continue;
+								}
+
+								// Extract articles from the extract array
+								if (Array.isArray(result.extract)) {
+									const articles = result.extract;
+									console.log(
+										`Processing ${articles.length} articles from ${sourceUrl}`
+									);
+
+									// Process each article
+									for (const article of articles) {
+										if (article && article.link) {
+											try {
+												await this.saveArticleToPost(
+													article,
+													sourceUrl
+												);
+											} catch (error) {
+												console.error(
+													`Error saving article:`,
+													error
+												);
+											}
+										} else {
+											console.log(
+												`Skipping article without link:`,
+												article
 											);
 										}
 									}
+								} else {
+									console.log(
+										`No extract array found in result for ${sourceUrl}`
+									);
 								}
 							}
+						} else {
+							console.error(
+								`Invalid job data structure or failed response:`,
+								jobData
+							);
 						}
+					} catch (error) {
+						console.error(
+							`Error fetching or processing job data:`,
+							error
+						);
 					}
 					break;
 

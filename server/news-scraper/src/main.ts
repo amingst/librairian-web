@@ -8,6 +8,8 @@ import config from './config.js';
 import { Request, Response } from 'express';
 import { StartHomepageFirecrawlJob } from './tools/StartHomepageFirecrawlJob.js';
 import { StartFirecrawlExtractArticleJob } from './tools/StartFirecrawlExtractArticleJob.js';
+import { StartHomepageHtmlScraperJob } from './tools/StartHomepageHtmlScraperJob.js';
+import { StartArticleHtmlScraperJob } from './tools/StartArticleHtmlScraperJob.js';
 
 type Config = typeof config;
 
@@ -19,7 +21,11 @@ class NewsScraper {
 		@inject(TYPES.StartHomepageFirecrawlJob)
 		private readonly startHomepageFirecrawlJob: IMCPTool,
 		@inject(TYPES.StartFirecrawlExtractArticleJob)
-		private readonly startFirecrawlExtractArticleJob: IMCPTool
+		private readonly startFirecrawlExtractArticleJob: IMCPTool,
+		@inject(TYPES.StartHomepageHtmlScraperJob)
+		private readonly startHomepageHtmlScraperJob: IMCPTool,
+		@inject(TYPES.StartArticleHtmlScraperJob)
+		private readonly startArticleHtmlScraperJob: IMCPTool
 	) {
 		this.setupShutdownHandlers();
 	}
@@ -28,6 +34,8 @@ class NewsScraper {
 		return [
 			this.startHomepageFirecrawlJob, // Firecrawl homepage scraping
 			this.startFirecrawlExtractArticleJob, // Firecrawl article content extraction
+			this.startHomepageHtmlScraperJob, // Local HTML homepage scraping
+			this.startArticleHtmlScraperJob, // Local HTML article content extraction
 		];
 	}
 
@@ -48,12 +56,14 @@ class NewsScraper {
 			`📖 Documentation: http://${this.config.host}:${this.config.port}/`
 		);
 		console.log(
-			`📡 Webhook endpoint: POST http://${this.config.host}:${this.config.port}/api/webhooks/firecrawl`
+			`📡 Webhook endpoints: 
+			  - Homepage: POST http://${this.config.host}:${this.config.port}/api/webhooks/firecrawl/homepage
+			  - Article: POST http://${this.config.host}:${this.config.port}/api/webhooks/firecrawl/article`
 		);
 	}
 
 	/**
-	 * Setup webhook endpoint for Firecrawl to send event notifications
+	 * Setup webhook endpoints for Firecrawl to send event notifications
 	 */
 	private setupWebhookEndpoint(): void {
 		// Access the Express app from the MCPHttpServer
@@ -62,24 +72,23 @@ class NewsScraper {
 
 		if (!app) {
 			console.error(
-				'Express app not available, cannot setup webhook endpoint'
+				'Express app not available, cannot setup webhook endpoints'
 			);
 			return;
 		}
 
-		// Create a webhook endpoint for Firecrawl
+		// Create webhook endpoint for homepage scraping
 		app.post(
-			'/api/webhooks/firecrawl',
+			'/api/webhooks/firecrawl/homepage',
 			async (req: Request, res: Response) => {
 				try {
 					console.log(
-						'Received webhook from Firecrawl:',
+						'Received homepage webhook from Firecrawl:',
 						req.body?.type
 					);
 
-					// Get the webhook payload
 					const payload = req.body;
-					console.log('Webhook payload:', payload);
+					console.log('Homepage webhook payload:', payload);
 
 					if (!payload) {
 						return res
@@ -87,34 +96,14 @@ class NewsScraper {
 							.json({ error: 'Invalid webhook payload' });
 					}
 
-					// Process the webhook payload
-					const { type } = payload;
+					// Always route to homepage job
+					const homepageJob = this
+						.startHomepageFirecrawlJob as StartHomepageFirecrawlJob;
+					await homepageJob.handleWebhookEvent(payload);
 
-					// Determine which tool should handle the webhook based on the event type
-					if (type && type.includes('homepage')) {
-						// Homepage scraping events go to StartHomepageFirecrawlJob
-						const homepageJob = this
-							.startHomepageFirecrawlJob as StartHomepageFirecrawlJob;
-						await homepageJob.handleWebhookEvent(payload);
-					} else if (
-						type &&
-						(type.includes('article') || type.includes('page'))
-					) {
-						// Article extraction events go to StartFirecrawlExtractArticleJob
-						const extractJob = this
-							.startFirecrawlExtractArticleJob as StartFirecrawlExtractArticleJob;
-						await extractJob.handleWebhookEvent(payload);
-					} else {
-						// Default to homepage job for backward compatibility
-						const homepageJob = this
-							.startHomepageFirecrawlJob as StartHomepageFirecrawlJob;
-						await homepageJob.handleWebhookEvent(payload);
-					}
-
-					// Return success to acknowledge receipt
 					return res.status(200).json({ success: true });
 				} catch (error) {
-					console.error('Error handling webhook:', error);
+					console.error('Error handling homepage webhook:', error);
 					return res.status(500).json({
 						success: false,
 						error:
@@ -126,7 +115,47 @@ class NewsScraper {
 			}
 		);
 
-		console.log('📢 Webhook endpoint registered for Firecrawl');
+		// Create webhook endpoint for article extraction
+		app.post(
+			'/api/webhooks/firecrawl/article',
+			async (req: Request, res: Response) => {
+				try {
+					console.log(
+						'Received article webhook from Firecrawl:',
+						req.body?.type
+					);
+
+					const payload = req.body;
+					console.log('Article webhook payload:', payload);
+
+					if (!payload) {
+						return res
+							.status(400)
+							.json({ error: 'Invalid webhook payload' });
+					}
+
+					// Always route to article extraction job
+					const extractJob = this
+						.startFirecrawlExtractArticleJob as StartFirecrawlExtractArticleJob;
+					await extractJob.handleWebhookEvent(payload);
+
+					return res.status(200).json({ success: true });
+				} catch (error) {
+					console.error('Error handling article webhook:', error);
+					return res.status(500).json({
+						success: false,
+						error:
+							error instanceof Error
+								? error.message
+								: String(error),
+					});
+				}
+			}
+		);
+
+		console.log('📢 Webhook endpoints registered for Firecrawl:');
+		console.log('   - Homepage: /api/webhooks/firecrawl/homepage');
+		console.log('   - Article: /api/webhooks/firecrawl/article');
 	}
 
 	private setupShutdownHandlers(): void {

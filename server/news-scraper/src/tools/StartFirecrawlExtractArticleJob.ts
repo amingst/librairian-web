@@ -121,11 +121,10 @@ export class StartFirecrawlExtractArticleJob extends MCPTool {
 			console.log(`Extracted ${urlsToProcess.length} URLs to process`);
 
 			// Set up webhook configuration
-			const baseUrl = `https://34078e82cae9.ngrok-free.app`; // Replace with your webhook URL
 			const webhookConfig = {
 				url:
-					process.env.WEBHOOK_URL ||
-					`${baseUrl}/api/webhooks/firecrawl`,
+					config.webhooks.article ||
+					`${config.webhookBaseUrl}/api/webhooks/firecrawl/article`,
 				events: ['page', 'completed', 'failed'],
 				metadata: {
 					jobType: 'article_extract',

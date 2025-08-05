@@ -3,6 +3,8 @@ import { TYPES } from './symbols.js';
 import { PrismaClient } from '@prisma/client'; // Import PrismaClient
 import { StartHomepageFirecrawlJob } from '../tools/StartHomepageFirecrawlJob.js';
 import { StartFirecrawlExtractArticleJob } from '../tools/StartFirecrawlExtractArticleJob.js';
+import { StartHomepageHtmlScraperJob } from '../tools/StartHomepageHtmlScraperJob.js';
+import { StartArticleHtmlScraperJob } from '../tools/StartArticleHtmlScraperJob.js';
 
 export { TYPES };
 
@@ -18,6 +20,8 @@ export type ToolMap = {
 
 // Define tool map
 export const TOOL_MAP: ToolMap = {
-	StartHomepageFirecrawlJob: StartHomepageFirecrawlJob, // Homepage scraping
-	StartFirecrawlExtractArticleJob: StartFirecrawlExtractArticleJob, // Article extraction
+	StartHomepageFirecrawlJob: StartHomepageFirecrawlJob, // Homepage scraping with Firecrawl
+	StartFirecrawlExtractArticleJob: StartFirecrawlExtractArticleJob, // Article extraction with Firecrawl
+	StartHomepageHtmlScraperJob: StartHomepageHtmlScraperJob, // Homepage scraping with local HTML parser
+	StartArticleHtmlScraperJob: StartArticleHtmlScraperJob, // Article content extraction with local HTML parser
 };

@@ -506,6 +506,96 @@ export class NewsScraperMCPClient {
 	}
 
 	/**
+	 * Start a homepage HTML scraper job using local parsing (no Firecrawl)
+	 */
+	async startHomepageHtmlScraperJob(params: {
+		urls: string[];
+		limit?: number;
+	}): Promise<{
+		message: string;
+		totalArticlesProcessed: number;
+		results: Array<{ url: string; articles: number; error?: string }>;
+		completedAt: string;
+	}> {
+		try {
+			await this.ensureConnected();
+
+			console.log(
+				`🚀 Starting HTML scraper job for ${params.urls.length} URLs...`
+			);
+
+			const result = await this.callToolWithTimeout(
+				'start_homepage_html_scraper_job',
+				{
+					urls: params.urls,
+					limit: params.limit || 20,
+				},
+				60000 // 60 seconds timeout since this processes synchronously
+			);
+
+			const parsedResult = JSON.parse(result.content[0].text);
+			console.log(
+				`✅ Completed HTML scraper job: ${parsedResult.totalArticlesProcessed} articles processed`
+			);
+
+			return parsedResult;
+		} catch (error) {
+			console.error('❌ Failed to start HTML scraper job:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Start an article HTML scraper job using local parsing (no Firecrawl)
+	 */
+	async startArticleHtmlScraperJob(params: {
+		postIds?: string[];
+		limit?: number;
+	}): Promise<{
+		message: string;
+		totalArticlesProcessed: number;
+		results: Array<{
+			url: string;
+			postId: string;
+			success: boolean;
+			error?: string;
+		}>;
+		completedAt: string;
+	}> {
+		try {
+			await this.ensureConnected();
+
+			console.log(
+				`🚀 Starting HTML article extraction job for ${
+					params.postIds?.length || 'auto-detected'
+				} posts...`
+			);
+
+			const result = await this.callToolWithTimeout(
+				'start_article_html_scraper_job',
+				{
+					postIds: params.postIds,
+					limit: params.limit || 50,
+				},
+				120000 // 2 minutes timeout since this processes article content
+			);
+
+			const parsedResult = JSON.parse(result.content[0].text);
+			console.log(
+				`✅ Completed HTML article extraction job: ${parsedResult.totalArticlesProcessed} articles processed`
+			);
+
+			return parsedResult;
+		} catch (error) {
+			console.error(
+				'❌ Failed to start HTML article extraction job:',
+				error
+			);
+			throw error;
+		}
+	}
+
+	/**
 	 * Convenience method to get and scrape selected sources
 	 */
 	async scrapeSelectedSources(
