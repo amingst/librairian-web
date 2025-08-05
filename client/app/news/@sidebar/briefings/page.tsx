@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 
-// Server component to fetch news sidebar data
+// Server component to fetch news sidebar data for briefings page
 async function getNewsSidebarData() {
 	// This could fetch from your database, API, etc.
 	// For now, I'll return static data, but you can replace with actual server calls
@@ -95,7 +95,7 @@ async function NewsSidebarData() {
 	);
 }
 
-export default function NewsSidebarPage() {
+export default function NewsSidebarBriefingsPage() {
 	return (
 		<Suspense fallback={<NewsSidebarDataSkeleton />}>
 			<NewsSidebarData />

@@ -183,6 +183,13 @@ export default function NewsScraperExample() {
 	const [scraping, setScraping] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [textAnalysisClient] = useState(() => new TextAnalysisMCPClient());
+	// Tool selection states
+	const [homepageTool, setHomepageTool] = useState<'firecrawl' | 'html'>(
+		'html'
+	);
+	const [extractionTool, setExtractionTool] = useState<'firecrawl' | 'html'>(
+		'html'
+	);
 	// grouping, showGrouped, and useOpenAI state variables removed
 	const [asyncJobStatus, setAsyncJobStatus] = useState<{
 		jobId: string;
@@ -209,185 +216,44 @@ export default function NewsScraperExample() {
 		};
 	}, [mcp.isConnected, mcp.isLoading]);
 
-	const handleScrapeSelected = async () => {
-		if (selection.selectedSources.length === 0) {
-			alert('Please select at least one news source');
-			return;
-		}
-
-		setScraping(true);
-		try {
-			// Limit to max 2 sources to avoid timeouts (was 3)
-			const sourcesToScrape = selection.selectedSources.slice(0, 2);
-			console.log(
-				`🚀 Scraping ${sourcesToScrape.length} sources:`,
-				sourcesToScrape
-			);
-
-			// Use the existing MCP client instead of separate document client
-			const result = await mcp.scrapeSelectedSources(sourcesToScrape, {
-				limit: 5, // Reduced from 3 to 5 to get more articles but with timeout protection
-				includeMedia: true,
-				includeSections: true,
-			});
-
-			console.log('📥 Raw scraping result:', result);
-			setArticles(result);
-		} catch (error) {
-			console.error('❌ Scraping failed:', error);
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-
-			// Check if it's a timeout error and provide specific guidance
-			if (
-				errorMessage.includes('timeout') ||
-				errorMessage.includes('timed out')
-			) {
-				alert(
-					`Scraping timed out: ${errorMessage}\n\nTips to avoid timeouts:\n• Select fewer sources (max 2 recommended)\n• Try again later if news sites are slow\n• Check if the MCP server is overloaded`
-				);
-			} else {
-				alert(
-					`Scraping failed: ${errorMessage}\n\nPlease check:\n• News servers are running properly\n• Selected sources are accessible\n• MCP server connection is stable`
-				);
-			}
-		} finally {
-			setScraping(false);
-		}
-	};
-
 	// handleGroupByCurrentEvents function removed
 
-	const handleStartAsyncScrapeJob = async () => {
-		if (selection.selectedSources.length === 0) {
-			alert('Please select at least one news source');
+	// Extract article content for dock items only using HTML scraper
+	const handleExtractDockItemsContent = async () => {
+		if (queue.length === 0) {
+			alert('No items in dock to extract content for');
 			return;
 		}
 
 		setScraping(true);
 		try {
-			// Get URLs for the selected sources
-			const selectedSourceDetails = await Promise.all(
-				selection.selectedSources.map((id) =>
-					mcp.getNewsSourceDetails(id)
-				)
-			);
+			// Get post IDs from dock items
+			const postIds = queue
+				.filter((item) => item.type === 'article' && item.id)
+				.map((item) => item.id);
 
-			const urls = selectedSourceDetails.map((source) => source.url);
+			if (postIds.length === 0) {
+				alert('No article items with IDs found in dock');
+				return;
+			}
+
 			console.log(
-				`🚀 Starting async scraping job for ${urls.length} URLs:`,
-				urls
+				`🚀 Starting HTML article extraction for ${postIds.length} dock items...`
 			);
 
-			// Start the scraping job using the new async method
-			const result = await mcp.startHomepageFirecrawlJob({
-				urls: urls,
-				limit: 20, // Get up to 20 articles per site
-			});
-
-			console.log('✅ Started async scraping job:', result);
-			setAsyncJobStatus(result);
-
-			alert(
-				`Scraping job started!\nJob ID: ${result.jobId}\nStatus: ${result.status}\n\nThe articles will be saved to the database in the background.`
-			);
-		} catch (error) {
-			console.error('❌ Failed to start scraping job:', error);
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			alert(`Failed to start scraping job: ${errorMessage}`);
-		} finally {
-			setScraping(false);
-		}
-	};
-
-	// Extract full article content from posts with only summaries
-	const handleExtractArticleContent = async () => {
-		setScraping(true);
-		try {
-			// Call the MCP client to start article extraction
-			// This time we don't provide URLs - the server will find posts needing content
-			const result = await mcp.startArticleExtractFirecrawlJob({
-				limit: 50, // Process up to 50 posts at a time
-			});
-
-			console.log('✅ Started article extraction job:', result);
-			setAsyncJobStatus(result);
-
-			alert(
-				`Article extraction job started!\nJob ID: ${result.jobId}\nStatus: ${result.status}\n\nFull article content will be extracted from posts in the background.`
-			);
-		} catch (error) {
-			console.error('❌ Failed to start article extraction job:', error);
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			alert(`Failed to start article extraction job: ${errorMessage}`);
-		} finally {
-			setScraping(false);
-		}
-	};
-
-	// Start HTML scraper job (local parsing, no Firecrawl)
-	const handleStartHtmlScraperJob = async () => {
-		if (selection.selectedSources.length === 0) {
-			alert('Please select at least one news source');
-			return;
-		}
-
-		setScraping(true);
-		try {
-			// Get URLs for the selected sources
-			const selectedSourceDetails = await Promise.all(
-				selection.selectedSources.map((id) =>
-					mcp.getNewsSourceDetails(id)
-				)
-			);
-
-			const urls = selectedSourceDetails.map((source) => source.url);
-			console.log(
-				`🚀 Starting HTML scraper job for ${urls.length} URLs:`,
-				urls
-			);
-
-			// Start the HTML scraping job using the new local parser
-			const result = await mcp.startHomepageHtmlScraperJob({
-				urls: urls,
-				limit: 20, // Get up to 20 articles per site
-			});
-
-			console.log('✅ Completed HTML scraper job:', result);
-
-			alert(
-				`HTML scraping completed!\nProcessed: ${result.totalArticlesProcessed} articles\nSources processed: ${result.results.length}\n\nArticles have been saved to the database.`
-			);
-
-			// Optionally refresh the data
-			await handleLoadFromDatabase();
-		} catch (error) {
-			console.error('❌ Failed to start HTML scraper job:', error);
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			alert(`Failed to start HTML scraper job: ${errorMessage}`);
-		} finally {
-			setScraping(false);
-		}
-	};
-
-	// Extract article content using HTML scraper (local parsing, no Firecrawl)
-	const handleStartHtmlArticleExtractionJob = async () => {
-		setScraping(true);
-		try {
-			console.log(`🚀 Starting HTML article extraction job...`);
-
-			// Start the HTML article extraction job
+			// Start the HTML article extraction job for specific posts
 			const result = await mcp.startArticleHtmlScraperJob({
-				limit: 50, // Process up to 50 posts at a time
+				postIds: postIds,
+				limit: postIds.length, // Process all dock items
 			});
 
-			console.log('✅ Completed HTML article extraction job:', result);
+			console.log(
+				'✅ Completed HTML article extraction for dock items:',
+				result
+			);
 
 			alert(
-				`HTML article extraction completed!\nProcessed: ${
+				`HTML article extraction completed for dock items!\nProcessed: ${
 					result.totalArticlesProcessed
 				} articles\nSuccessful extractions: ${
 					result.results.filter((r) => r.success).length
@@ -398,13 +264,123 @@ export default function NewsScraperExample() {
 			await handleLoadFromDatabase();
 		} catch (error) {
 			console.error(
-				'❌ Failed to start HTML article extraction job:',
+				'❌ Failed to extract content for dock items:',
+				error
+			);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			alert(`Failed to extract content for dock items: ${errorMessage}`);
+		} finally {
+			setScraping(false);
+		}
+	};
+
+	// Unified homepage scraper handler that uses the selected tool
+	const handleHomepageScraping = async () => {
+		if (selection.selectedSources.length === 0) {
+			alert('Please select at least one news source');
+			return;
+		}
+
+		setScraping(true);
+		try {
+			// Get URLs for the selected sources
+			const selectedSourceDetails = await Promise.all(
+				selection.selectedSources.map((id) =>
+					mcp.getNewsSourceDetails(id)
+				)
+			);
+
+			const urls = selectedSourceDetails.map((source) => source.url);
+			console.log(
+				`🚀 Starting ${homepageTool} homepage scraping for ${urls.length} URLs:`,
+				urls
+			);
+
+			if (homepageTool === 'html') {
+				// Use HTML scraper (local parsing)
+				const result = await mcp.startHomepageHtmlScraperJob({
+					urls: urls,
+					limit: 20,
+				});
+
+				console.log('✅ Completed HTML scraper job:', result);
+				alert(
+					`HTML scraping completed!\nProcessed: ${result.totalArticlesProcessed} articles\nSources processed: ${result.results.length}\n\nArticles have been saved to the database.`
+				);
+			} else {
+				// Use Firecrawl (async job)
+				const result = await mcp.startHomepageFirecrawlJob({
+					urls: urls,
+					limit: 20,
+				});
+
+				console.log('✅ Started Firecrawl job:', result);
+				setAsyncJobStatus(result);
+				alert(
+					`Firecrawl job started!\nJob ID: ${result.jobId}\nStatus: ${result.status}\n\nThe articles will be saved to the database in the background.`
+				);
+			}
+
+			// Optionally refresh the data
+			await handleLoadFromDatabase();
+		} catch (error) {
+			console.error(
+				`❌ Failed to start ${homepageTool} scraper job:`,
 				error
 			);
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 			alert(
-				`Failed to start HTML article extraction job: ${errorMessage}`
+				`Failed to start ${homepageTool} scraper job: ${errorMessage}`
+			);
+		} finally {
+			setScraping(false);
+		}
+	};
+
+	// Unified article extraction handler that uses the selected tool
+	const handleArticleExtraction = async () => {
+		setScraping(true);
+		try {
+			console.log(`🚀 Starting ${extractionTool} article extraction...`);
+
+			if (extractionTool === 'html') {
+				// Use HTML extractor (local parsing)
+				const result = await mcp.startArticleHtmlScraperJob({
+					limit: 50,
+				});
+
+				console.log('✅ Completed HTML article extraction:', result);
+				alert(
+					`HTML article extraction completed!\nProcessed: ${result.totalArticlesProcessed} articles\nResults: ${result.results.length} processed\n\nArticles have been updated in the database.`
+				);
+			} else {
+				// Use Firecrawl extractor (async job)
+				const result = await mcp.startArticleExtractFirecrawlJob({
+					limit: 50,
+				});
+
+				console.log(
+					'✅ Started Firecrawl article extraction job:',
+					result
+				);
+				alert(
+					`Firecrawl article extraction job started!\nJob ID: ${result.jobId}\nStatus: ${result.status}\n\nThe articles will be processed in the background.`
+				);
+			}
+
+			// Refresh the data to show updated articles
+			await handleLoadFromDatabase();
+		} catch (error) {
+			console.error(
+				`❌ Failed ${extractionTool} article extraction:`,
+				error
+			);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			alert(
+				`Failed ${extractionTool} article extraction: ${errorMessage}`
 			);
 		} finally {
 			setScraping(false);
@@ -630,9 +606,66 @@ export default function NewsScraperExample() {
 					<h2 className='text-xl font-semibold mb-3'>
 						News Documents
 					</h2>
+
+					{/* Tool Selection */}
+					<div className='border rounded-lg p-4 mb-4'>
+						<h3 className='text-lg font-medium mb-3'>
+							Scraping Tools
+						</h3>
+						<div className='grid grid-cols-2 gap-4'>
+							<div>
+								<label className='block text-sm font-medium mb-2'>
+									Homepage Scraper:
+								</label>
+								<select
+									value={homepageTool}
+									onChange={(e) =>
+										setHomepageTool(
+											e.target.value as
+												| 'firecrawl'
+												| 'html'
+										)
+									}
+									className='w-full p-2 border border-gray-300 rounded-md'
+								>
+									<option value='html'>
+										HTML Parser (Free)
+									</option>
+									<option value='firecrawl'>
+										Firecrawl (Premium)
+									</option>
+								</select>
+							</div>
+							<div>
+								<label className='block text-sm font-medium mb-2'>
+									Article Extractor:
+								</label>
+								<select
+									value={extractionTool}
+									onChange={(e) =>
+										setExtractionTool(
+											e.target.value as
+												| 'firecrawl'
+												| 'html'
+										)
+									}
+									className='w-full p-2 border border-gray-300 rounded-md'
+								>
+									<option value='html'>
+										HTML Parser (Free)
+									</option>
+									<option value='firecrawl'>
+										Firecrawl (Premium)
+									</option>
+								</select>
+							</div>
+						</div>
+					</div>
+
 					<div className='border rounded-lg p-4'>
+						{/* Main Homepage Scraping Button */}
 						<button
-							onClick={handleScrapeSelected}
+							onClick={handleHomepageScraping}
 							disabled={scraping || selection.count === 0}
 							className='w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
@@ -641,48 +674,34 @@ export default function NewsScraperExample() {
 								: `Scrape ${Math.min(
 										selection.count,
 										2
-								  )} Selected Sources ${
-										Math.min(selection.count, 2) === 1
-											? '(Fast Mode)'
-											: '(Batch Mode)'
-								  }`}
+								  )} Selected Sources (${
+										homepageTool === 'html'
+											? 'HTML - Free'
+											: 'Firecrawl - Premium'
+								  })`}
 						</button>
 
-						{/* Add Async Job Scraping button */}
+						{/* Main Article Extraction Button */}
 						<button
-							onClick={handleStartAsyncScrapeJob}
-							disabled={scraping || selection.count === 0}
-							className='w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
-						>
-							Start Async Scraping Job ({selection.count} sources)
-						</button>
-
-						{/* Extract Article Content button */}
-						<button
-							onClick={handleExtractArticleContent}
+							onClick={handleArticleExtraction}
 							disabled={scraping}
 							className='w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
-							Extract Full Article Content from Database
+							{`Extract Article Content (${
+								extractionTool === 'html'
+									? 'HTML - Free'
+									: 'Firecrawl - Premium'
+							})`}
 						</button>
 
-						{/* HTML Article Extraction button (local parsing) */}
+						{/* Extract Dock Items Content button */}
 						<button
-							onClick={handleStartHtmlArticleExtractionJob}
-							disabled={scraping}
-							className='w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+							onClick={handleExtractDockItemsContent}
+							disabled={scraping || queue.length === 0}
+							className='w-full px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
-							Extract Article Content (HTML) - Free & Fast
-						</button>
-
-						{/* HTML Scraper button (local parsing) */}
-						<button
-							onClick={handleStartHtmlScraperJob}
-							disabled={scraping || selection.count === 0}
-							className='w-full px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
-						>
-							Start HTML Scraper Job ({selection.count} sources) -
-							Free & Fast
+							Extract Content for Dock Items ({queue.length}{' '}
+							items) - HTML
 						</button>
 
 						{selection.count > 2 && (

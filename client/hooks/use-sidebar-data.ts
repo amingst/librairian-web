@@ -128,6 +128,10 @@ export const fallbackSidebarData: { [key: string]: SidebarData } = {
 						url: '/news',
 					},
 					{
+						title: 'Local Briefings',
+						url: '/news/briefings',
+					},
+					{
 						title: 'Sources',
 						url: '/news/sources',
 					},

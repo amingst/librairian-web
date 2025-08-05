@@ -32,6 +32,18 @@ export function NewsSidebar() {
 					</li>
 					<li>
 						<Link
+							href='/news/briefings'
+							className={`block p-2 rounded transition-colors ${
+								pathname === '/news/briefings'
+									? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 font-medium'
+									: 'hover:bg-muted hover:text-purple-600 dark:hover:text-purple-400'
+							}`}
+						>
+							Local Briefings
+						</Link>
+					</li>
+					<li>
+						<Link
 							href='#'
 							className='block p-2 rounded transition-colors hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-300'
 						>
