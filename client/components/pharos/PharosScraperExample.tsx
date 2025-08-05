@@ -532,7 +532,7 @@ export default function NewsScraperExample() {
 							<button
 								key={category}
 								onClick={() => handleSelectByCategory(category)}
-								className='px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm capitalize'
+								className='px-3 py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-sm capitalize'
 								title={`Select ${willSelect} of ${categoryCount} sources (limited to 2 for timeout prevention)`}
 							>
 								{category} ({willSelect}/{categoryCount})
@@ -556,9 +556,9 @@ export default function NewsScraperExample() {
 								onClick={() =>
 									selection.toggleSource(source.id)
 								}
-								className={`flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer transition-colors ${
+								className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b last:border-b-0 cursor-pointer transition-colors ${
 									selection.isSelected(source.id)
-										? 'bg-blue-50 border-blue-200'
+										? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700'
 										: ''
 								}`}
 							>
@@ -588,13 +588,13 @@ export default function NewsScraperExample() {
 									mcp.sources.map((s: any) => s.id)
 								)
 							}
-							className='px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 rounded'
+							className='px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/70 rounded'
 						>
 							Select All
 						</button>
 						<button
 							onClick={selection.clearSelection}
-							className='px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded'
+							className='px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded'
 						>
 							Clear All
 						</button>
@@ -667,7 +667,7 @@ export default function NewsScraperExample() {
 						<button
 							onClick={handleHomepageScraping}
 							disabled={scraping || selection.count === 0}
-							className='w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+							className='w-full px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
 							{scraping
 								? 'Scraping...'
@@ -685,7 +685,7 @@ export default function NewsScraperExample() {
 						<button
 							onClick={handleArticleExtraction}
 							disabled={scraping}
-							className='w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+							className='w-full px-4 py-2 bg-purple-600 dark:bg-purple-700 text-white rounded hover:bg-purple-700 dark:hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
 							{`Extract Article Content (${
 								extractionTool === 'html'
@@ -698,14 +698,14 @@ export default function NewsScraperExample() {
 						<button
 							onClick={handleExtractDockItemsContent}
 							disabled={scraping || queue.length === 0}
-							className='w-full px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
+							className='w-full px-4 py-2 bg-teal-600 dark:bg-teal-700 text-white rounded hover:bg-teal-700 dark:hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
 							Extract Content for Dock Items ({queue.length}{' '}
 							items) - HTML
 						</button>
 
 						{selection.count > 2 && (
-							<div className='mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800'>
+							<div className='mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-yellow-800 dark:text-yellow-200'>
 								⚠️ Only the first 2 sources will be scraped to
 								avoid timeouts. Deselect some sources or scrape
 								in multiple batches.
@@ -716,7 +716,7 @@ export default function NewsScraperExample() {
 						<button
 							onClick={handleLoadFromDatabase}
 							disabled={loading}
-							className='w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+							className='w-full px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
 						>
 							<DatabaseIcon className='w-4 h-4' />
 							{loading
@@ -751,8 +751,8 @@ export default function NewsScraperExample() {
 
 						{/* Async Job Status */}
 						{asyncJobStatus && (
-							<div className='mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded'>
-								<h4 className='font-semibold text-indigo-800'>
+							<div className='mt-3 p-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded'>
+								<h4 className='font-semibold text-indigo-800 dark:text-indigo-200'>
 									Async Job Status
 								</h4>
 								<div className='text-sm mt-1'>
@@ -901,9 +901,9 @@ export default function NewsScraperExample() {
 																onClick={
 																	handleToggleDock
 																}
-																className={`flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0 cursor-pointer transition-colors rounded-sm ${
+																className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b last:border-b-0 cursor-pointer transition-colors rounded-sm ${
 																	inDock
-																		? 'bg-green-50 border-green-200'
+																		? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700'
 																		: ''
 																}`}
 															>
