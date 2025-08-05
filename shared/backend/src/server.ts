@@ -42,10 +42,13 @@ export class MCPHttpServer {
 		@inject(Symbol.for('ExpressServerConfig'))
 		private expressConfig: ExpressServerConfig
 	) {
-		this.mcpServer = new McpServer(mcpConfig.serverInfo, mcpConfig.options);
+		this.mcpServer = new McpServer(
+			this.mcpConfig.serverInfo,
+			this.mcpConfig.options
+		);
 		this.expressApp = express();
 		this.prisma = PrismaClientFactory.getInstance('news-sources');
-		this.setupExpress(expressConfig);
+		this.setupExpress(this.expressConfig);
 		this.setupMCPRoutes();
 	}
 

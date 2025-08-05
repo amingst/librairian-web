@@ -24,6 +24,7 @@
     "db:reset": "prisma migrate reset",
     "db:populate": "ts-node --transpile-only ./scripts/populateDb.ts",
     "db:populate-test": "ts-node --transpile-only ./scripts/populateDb.ts --test",
+    "db:seed-sources": "ts-node --transpile-only ./prisma/seedsources.ts",
     "db:setup": "node ./scripts/setupDb.js",
     "post": "npm run db:setup && npx prisma generate",
     "clean": "rm -rf node_modules && rm -rf package-lock.json && npm run clean:all"

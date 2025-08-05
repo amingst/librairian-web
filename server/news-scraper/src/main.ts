@@ -14,17 +14,6 @@ type Config = typeof config;
 @injectable()
 class NewsScraper {
 	constructor(
-		// @inject(TYPES.WebpageSearch) private readonly webpageSearch: IMCPTool,
-		// @inject(TYPES.SingleSiteScraper)
-		// private readonly singleSiteScraper: IMCPTool,
-		// @inject(TYPES.WebpageMetadata)
-		// private readonly webpageMetadata: IMCPTool,
-		// @inject(TYPES.ArticleExtractor)
-		// private readonly articleExtractor: IMCPTool,
-		// @inject(TYPES.NewsHomepage) private readonly newsHomepage: IMCPTool,
-		// @inject(TYPES.NewsPipeline) private readonly newsPipeline: IMCPTool,
-		// @inject(TYPES.FirecrawlNewsHomepage)
-		// private readonly firecrawlNewsHomepage: IMCPTool,
 		@inject(MCPHttpServer) private readonly server: MCPHttpServer,
 		@inject(TYPES.Config) private readonly config: Config,
 		@inject(TYPES.StartHomepageFirecrawlJob)
@@ -37,13 +26,6 @@ class NewsScraper {
 
 	private get tools(): IMCPTool[] {
 		return [
-			// this.webpageSearch,
-			// this.singleSiteScraper,
-			// this.webpageMetadata,
-			// this.articleExtractor,
-			// this.newsHomepage,
-			// this.newsPipeline,
-			// this.firecrawlNewsHomepage,
 			this.startHomepageFirecrawlJob, // Firecrawl homepage scraping
 			this.startFirecrawlExtractArticleJob, // Firecrawl article content extraction
 		];
