@@ -46,8 +46,8 @@ export function useSidebarData(): SidebarData | null {
 
 	useEffect(() => {
 		// Determine which script tag to read based on current route
-		const scriptId = pathname.startsWith('/news')
-			? 'news-sidebar-data'
+		const scriptId = pathname.startsWith('/pharos')
+			? 'pharos-sidebar-data'
 			: 'jfk-sidebar-data';
 
 		// Try to get data from the script tag injected by server component
@@ -120,28 +120,28 @@ export const fallbackSidebarData: { [key: string]: SidebarData } = {
 		navMain: [
 			{
 				title: 'PHΛROS',
-				url: '/news',
+				url: '/pharos',
 				icon: 'Newspaper',
 				items: [
 					{
 						title: 'Headlines',
-						url: '/news',
+						url: '/pharos',
 					},
 					{
 						title: 'Local Briefings',
-						url: '/news/briefings',
+						url: '/pharos/briefings',
 					},
 					{
 						title: 'Sources',
-						url: '/news/sources',
+						url: '/pharos/sources',
 					},
 					{
 						title: 'Topics',
-						url: '/news/topics',
+						url: '/pharos/topics',
 					},
 					{
 						title: 'Analysis',
-						url: '/news/analysis',
+						url: '/pharos/analysis',
 					},
 				],
 			},

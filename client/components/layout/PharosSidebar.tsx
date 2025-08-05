@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export function NewsSidebar() {
+export function PharosSidebar() {
 	const pathname = usePathname();
 
 	return (
@@ -78,4 +78,4 @@ export function NewsSidebar() {
 	);
 }
 
-export default NewsSidebar;
+export default PharosSidebar;

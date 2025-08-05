@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
 	useMCPClient,
 	useSelectedSources,
-} from '../../hooks/news/use-mcp-client';
+} from '../../hooks/pharos/use-mcp-client';
 import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 import type { Document, Post } from '@prisma/client';
 import type { NewsArticlePreview } from '@shared/types';
@@ -400,8 +400,8 @@ export default function NewsScraperExample() {
 		try {
 			console.log('🔍 Fetching news articles from database...');
 
-			// Call the news articles API endpoint directly
-			const response = await fetch('/api/news/posts?limit=50');
+			// Call the pharos articles API endpoint directly
+			const response = await fetch('/api/pharos/posts?limit=50');
 
 			if (!response.ok) {
 				const errorText = await response.text();

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 
-// Server component to fetch news sidebar data for briefings page
-async function getNewsSidebarData() {
+// Server component to fetch pharos sidebar data for briefings page
+async function getPharosSidebarData() {
 	// This could fetch from your database, API, etc.
 	// For now, I'll return static data, but you can replace with actual server calls
 
@@ -12,35 +12,35 @@ async function getNewsSidebarData() {
 		navMain: [
 			{
 				title: 'PHΛROS',
-				url: '/news',
+				url: '/pharos',
 				icon: 'Newspaper',
 				items: [
 					{
 						title: 'Headlines',
-						url: '/news',
+						url: '/pharos',
 					},
 					{
 						title: 'Local Briefings',
-						url: '/news/briefings',
+						url: '/pharos/briefings',
 					},
 					{
 						title: 'Sources',
-						url: '/news/sources',
+						url: '/pharos/sources',
 					},
 					{
 						title: 'Topics',
-						url: '/news/topics',
+						url: '/pharos/topics',
 					},
 					{
 						title: 'Analysis',
-						url: '/news/analysis',
+						url: '/pharos/analysis',
 					},
 				],
 			},
 		],
 		projects: [
 			{
-				name: 'News Intelligence',
+				name: 'Pharos Intelligence',
 				url: '/projects/intelligence',
 				icon: 'Newspaper',
 			},
@@ -52,7 +52,7 @@ async function getNewsSidebarData() {
 		],
 		recentArticles: [
 			{
-				id: 'news-001',
+				id: 'pharos-001',
 				title: 'Breaking News Update',
 				source: 'Reuters',
 				lastAccessed: new Date().toISOString(),
@@ -67,7 +67,7 @@ async function getNewsSidebarData() {
 	};
 }
 
-function NewsSidebarDataSkeleton() {
+function PharosSidebarDataSkeleton() {
 	return (
 		<div className='animate-pulse space-y-4 p-4'>
 			<div className='h-4 bg-gray-200 rounded w-3/4'></div>
@@ -77,15 +77,15 @@ function NewsSidebarDataSkeleton() {
 	);
 }
 
-async function NewsSidebarData() {
-	const data = await getNewsSidebarData();
+async function PharosSidebarData() {
+	const data = await getPharosSidebarData();
 
 	return (
 		<div className='hidden'>
 			{/* This component provides data context but doesn't render UI */}
 			{/* The data will be available through context or props */}
 			<script
-				id='news-sidebar-data'
+				id='pharos-sidebar-data'
 				type='application/json'
 				dangerouslySetInnerHTML={{
 					__html: JSON.stringify(data),
@@ -95,10 +95,10 @@ async function NewsSidebarData() {
 	);
 }
 
-export default function NewsSidebarBriefingsPage() {
+export default function PharosSidebarBriefingsPage() {
 	return (
-		<Suspense fallback={<NewsSidebarDataSkeleton />}>
-			<NewsSidebarData />
+		<Suspense fallback={<PharosSidebarDataSkeleton />}>
+			<PharosSidebarData />
 		</Suspense>
 	);
 }
