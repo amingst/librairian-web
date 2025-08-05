@@ -422,6 +422,90 @@ export class NewsScraperMCPClient {
 	}
 
 	/**
+	 * Start a job to scrape news homepages asynchronously
+	 * Returns a job ID that can be used to check the status later
+	 */
+	async startHomepageFirecrawlJob(params: {
+		urls: string[];
+		limit?: number;
+	}): Promise<{
+		jobId: string;
+		status: string;
+		message: string;
+		startTime: Date;
+	}> {
+		await this.ensureConnected();
+
+		try {
+			console.log(
+				`🚀 Starting asynchronous news homepage scraping job for ${params.urls.length} URLs`
+			);
+
+			const result = await this.callToolWithTimeout(
+				'start_homepage_firecrawl_job',
+				{
+					urls: params.urls,
+					limit: params.limit ?? 20,
+				},
+				30000 // 30 seconds timeout just for starting the job
+			);
+
+			const parsedResult = this.parseToolResult(result);
+			console.log(`✅ Started scraping job: ${parsedResult.jobId}`);
+
+			return parsedResult;
+		} catch (error) {
+			console.error('❌ Failed to start homepage scraping job:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Start a job to extract article content from URLs asynchronously
+	 * Returns a job ID that can be used to check the status later
+	 */
+	async startArticleExtractFirecrawlJob(params: {
+		urls?: string[];
+		limit?: number;
+		webhookUrl?: string;
+	}): Promise<{
+		jobId: string;
+		status: string;
+		message: string;
+		startTime: Date;
+	}> {
+		await this.ensureConnected();
+
+		try {
+			console.log(
+				`🚀 Starting asynchronous article extraction job for ${
+					params.urls?.length || 0
+				} URLs`
+			);
+
+			const result = await this.callToolWithTimeout(
+				'start_article_extract_firecrawl_job',
+				{
+					urls: params.urls || [],
+					limit: params.limit,
+					webhookUrl: params.webhookUrl,
+				},
+				30000 // 30 seconds timeout just for starting the job
+			);
+
+			const parsedResult = this.parseToolResult(result);
+			console.log(
+				`✅ Started article extraction job: ${parsedResult.jobId}`
+			);
+
+			return parsedResult;
+		} catch (error) {
+			console.error('❌ Failed to start article extraction job:', error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Convenience method to get and scrape selected sources
 	 */
 	async scrapeSelectedSources(

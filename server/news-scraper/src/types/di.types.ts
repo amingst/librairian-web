@@ -9,6 +9,7 @@ import { FirecrawlNewsHomepageTool } from '../tools/FirecrawlNewsHomepage.js';
 import { TYPES } from './symbols.js';
 import { PrismaClient } from '@prisma/client'; // Import PrismaClient
 import { StartHomepageFirecrawlJob } from '../tools/StartHomepageFirecrawlJob.js';
+import { StartFirecrawlExtractArticleJob } from '../tools/StartFirecrawlExtractArticleJob.js';
 
 export { TYPES };
 
@@ -24,12 +25,13 @@ export type ToolMap = {
 
 // Define tool map
 export const TOOL_MAP: ToolMap = {
-	WebpageSearch: WebpageSearchTool,
-	SingleSiteScraper: SingleSiteScraperTool,
-	WebpageMetadata: WebpageMetadataTool,
-	ArticleExtractor: ArticleExtractorTool,
-	NewsHomepage: NewsHomepageTool,
-	NewsPipeline: NewsPipelineTool,
-	FirecrawlNewsHomepage: FirecrawlNewsHomepageTool,
-	StartHomepageFirecrawlJob: StartHomepageFirecrawlJob, // Ensure this matches the class name
+	// WebpageSearch: WebpageSearchTool,
+	// SingleSiteScraper: SingleSiteScraperTool,
+	// WebpageMetadata: WebpageMetadataTool,
+	// ArticleExtractor: ArticleExtractorTool,
+	// NewsHomepage: NewsHomepageTool,
+	// NewsPipeline: NewsPipelineTool,
+	// FirecrawlNewsHomepage: FirecrawlNewsHomepageTool,
+	StartHomepageFirecrawlJob: StartHomepageFirecrawlJob, // Homepage scraping
+	StartFirecrawlExtractArticleJob: StartFirecrawlExtractArticleJob, // Article extraction
 };

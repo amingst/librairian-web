@@ -73,60 +73,60 @@ export class FirecrawlNewsHomepageTool extends MCPTool {
 			return { saved: 0, skipped: articles.length };
 		}
 
-		for (const article of articles) {
-			try {
-				// Use upsert to avoid duplicates based on URL
-				const savedArticle = await this.prisma.newsArticle.upsert({
-					where: {
-						url: article.link,
-					},
-					update: {
-						title: article.title,
-						summary: article.excerpt || null,
-						// Don't update publishedAt on updates to preserve original date
-					},
-					create: {
-						sourceId: newsSource.id,
-						title: article.title,
-						url: article.link,
-						summary: article.excerpt || null,
-						publishedAt: new Date(), // Use current time as we don't have the original publish date
-					},
-				});
+		// for (const article of articles) {
+		// 	try {
+		// 		// Use upsert to avoid duplicates based on URL
+		// 		const savedArticle = await this.prisma.newsArticle.upsert({
+		// 			where: {
+		// 				url: article.link,
+		// 			},
+		// 			update: {
+		// 				title: article.title,
+		// 				summary: article.excerpt || null,
+		// 				// Don't update publishedAt on updates to preserve original date
+		// 			},
+		// 			create: {
+		// 				sourceId: newsSource.id,
+		// 				title: article.title,
+		// 				url: article.link,
+		// 				summary: article.excerpt || null,
+		// 				publishedAt: new Date(), // Use current time as we don't have the original publish date
+		// 			},
+		// 		});
 
-				// Add media if present
-				if (article.media && article.media.url) {
-					// Check if media already exists for this article
-					const existingMedia =
-						await this.prisma.articleMedia.findFirst({
-							where: {
-								articleId: savedArticle.id,
-								url: article.media.url,
-							},
-						});
+		// 		// Add media if present
+		// 		if (article.media && article.media.url) {
+		// 			// Check if media already exists for this article
+		// 			const existingMedia =
+		// 				await this.prisma.articleMedia.findFirst({
+		// 					where: {
+		// 						articleId: savedArticle.id,
+		// 						url: article.media.url,
+		// 					},
+		// 				});
 
-					if (!existingMedia) {
-						await this.prisma.articleMedia.create({
-							data: {
-								articleId: savedArticle.id,
-								url: article.media.url,
-								type:
-									article.media.type === 'image'
-										? 'IMAGE'
-										: 'VIDEO',
-								title: null,
-								caption: null,
-							},
-						});
-					}
-				}
+		// 			if (!existingMedia) {
+		// 				await this.prisma.articleMedia.create({
+		// 					data: {
+		// 						articleId: savedArticle.id,
+		// 						url: article.media.url,
+		// 						type:
+		// 							article.media.type === 'image'
+		// 								? 'IMAGE'
+		// 								: 'VIDEO',
+		// 						title: null,
+		// 						caption: null,
+		// 					},
+		// 				});
+		// 			}
+		// 		}
 
-				saved++;
-			} catch (error) {
-				console.error(`Failed to save article ${article.link}:`, error);
-				skipped++;
-			}
-		}
+		// 		saved++;
+		// 	} catch (error) {
+		// 		console.error(`Failed to save article ${article.link}:`, error);
+		// 		skipped++;
+		// 	}
+		// }
 
 		return { saved, skipped };
 	}

@@ -44,6 +44,25 @@ interface UseMCPClientActions {
 			maxResults?: number;
 		}
 	) => Promise<any>;
+	startHomepageFirecrawlJob: (params: {
+		urls: string[];
+		limit?: number;
+	}) => Promise<{
+		jobId: string;
+		status: string;
+		message: string;
+		startTime: Date;
+	}>;
+	startArticleExtractFirecrawlJob: (params: {
+		urls?: string[];
+		limit?: number;
+		webhookUrl?: string;
+	}) => Promise<{
+		jobId: string;
+		status: string;
+		message: string;
+	}>;
+	getNewsSourceDetails: (sourceId: string) => Promise<NewsSourceDetails>;
 }
 
 export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
@@ -241,12 +260,83 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		[]
 	);
 
+	const startHomepageFirecrawlJob = useCallback(
+		async (params: { urls: string[]; limit?: number }) => {
+			setLoading(true);
+			setError(null);
+
+			try {
+				const result = await mcpClient.startHomepageFirecrawlJob(
+					params
+				);
+				return result;
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: 'Failed to start homepage firecrawl job';
+				setError(errorMessage);
+				throw error;
+			} finally {
+				setLoading(false);
+			}
+		},
+		[]
+	);
+
+	const getNewsSourceDetails = useCallback(async (sourceId: string) => {
+		setLoading(true);
+		setError(null);
+
+		try {
+			const result = await mcpClient.getNewsSourceDetails(sourceId);
+			return result;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: `Failed to get details for source ${sourceId}`;
+			setError(errorMessage);
+			throw error;
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
 	// Auto-load sources when connected
 	useEffect(() => {
 		if (state.isConnected && state.sources.length === 0) {
 			refreshSources();
 		}
 	}, [state.isConnected, state.sources.length, refreshSources]);
+
+	const startArticleExtractFirecrawlJob = useCallback(
+		async (params: {
+			urls?: string[];
+			limit?: number;
+			webhookUrl?: string;
+		}) => {
+			setLoading(true);
+			setError(null);
+
+			try {
+				const result = await mcpClient.startArticleExtractFirecrawlJob(
+					params
+				);
+				return result;
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: 'Failed to start article extraction job';
+				setError(errorMessage);
+				throw error;
+			} finally {
+				setLoading(false);
+			}
+		},
+		[]
+	);
 
 	return {
 		...state,
@@ -257,6 +347,9 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		scrapeWebpage,
 		extractArticle,
 		searchContent,
+		startHomepageFirecrawlJob,
+		startArticleExtractFirecrawlJob,
+		getNewsSourceDetails,
 	};
 }
 

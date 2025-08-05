@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch"]
 }
 
@@ -15,54 +15,54 @@ datasource db {
 }
 
 model Document {
-  id             String   @id
-  oldId          String?  // Store the original hashed ID here
-  document       Json     // The full JSON document
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id
+  oldId     String? // Store the original hashed ID here
+  document  Json // The full JSON document
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Document metadata
-  documentUrl       String?
-  processingDate    DateTime?
-  pageCount         Int?
-  title             String?
-  summary           String?  @db.Text
-  fullText          String?  @db.Text
-  documentType      String?  // Legacy field (for backward compatibility)
-  documentGroup     String?  // New field for consistent terminology
-  
+  documentUrl    String?
+  processingDate DateTime?
+  pageCount      Int?
+  title          String?
+  summary        String?   @db.Text
+  fullText       String?   @db.Text
+  documentType   String? // Legacy field (for backward compatibility)
+  documentGroup  String? // New field for consistent terminology
+
   // Arrays for data storage (not indexed)
-  allNames          String[]
-  allPlaces         String[]
-  allDates          String[]
-  allObjects        String[]
-  stamps            String[]
-  
+  allNames   String[]
+  allPlaces  String[]
+  allDates   String[]
+  allObjects String[]
+  stamps     String[]
+
   // Search field - concatenated text for full-text search
-  searchText        String?  @db.Text
-  
+  searchText String? @db.Text
+
   // Normalized dates for range searching
-  normalizedDates   DateTime[]
-  earliestDate      DateTime?
-  latestDate        DateTime?
-  
+  normalizedDates DateTime[]
+  earliestDate    DateTime?
+  latestDate      DateTime?
+
   // Boolean flags for quick filtering
   hasHandwrittenNotes Boolean @default(false)
-  hasStamps          Boolean @default(false)
-  hasFullText        Boolean @default(false)
-  
+  hasStamps           Boolean @default(false)
+  hasFullText         Boolean @default(false)
+
   // Processing status tracking
-  processingStage    String?  // 'pending', 'downloading', 'processing', 'completed', 'failed'
-  processingSteps    String[] // Array of completed steps: 'download', 'conversion', 'analysis', 'publishing', 'complete'
-  lastProcessed      DateTime?
-  processingError    String?  @db.Text
-  archiveId          String?  // References the external archive ID for this document
-  
+  processingStage String? // 'pending', 'downloading', 'processing', 'completed', 'failed'
+  processingSteps String[] // Array of completed steps: 'download', 'conversion', 'analysis', 'publishing', 'complete'
+  lastProcessed   DateTime?
+  processingError String?   @db.Text
+  archiveId       String? // References the external archive ID for this document
+
   // References to related models
   pages            Page[]
   handwrittenNotes HandwrittenNote[]
   documentStamps   DocumentStamp[]
-  
+
   // Efficient indexes (keeping only what's necessary)
   @@index([documentType])
   @@index([documentGroup])
@@ -75,19 +75,19 @@ model Document {
 }
 
 model Page {
-  id           String   @id @default(cuid())
-  documentId   String
-  pageNumber   Int
-  imagePath    String
-  summary      String?  @db.Text
-  fullText     String?  @db.Text
-  hasImage     Boolean  @default(false)
-  hasText      Boolean  @default(false)
-  processedAt  DateTime?
-  
+  id          String    @id @default(cuid())
+  documentId  String
+  pageNumber  Int
+  imagePath   String
+  summary     String?   @db.Text
+  fullText    String?   @db.Text
+  hasImage    Boolean   @default(false)
+  hasText     Boolean   @default(false)
+  processedAt DateTime?
+
   // Relation to parent document
-  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
   // Composite unique constraint
   @@unique([documentId, pageNumber])
   @@index([pageNumber])
@@ -96,34 +96,124 @@ model Page {
 }
 
 model HandwrittenNote {
-  id           String   @id @default(cuid())
-  documentId   String
-  pageNumber   Int
-  content      String   @db.Text
-  location     String?
-  
+  id         String  @id @default(cuid())
+  documentId String
+  pageNumber Int
+  content    String  @db.Text
+  location   String?
+
   // Relation to parent document
-  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
   @@index([documentId, pageNumber])
   @@index([content])
 }
 
 model DocumentStamp {
-  id           String   @id @default(cuid())
-  documentId   String
-  pageNumber   Int
-  type         String?
-  date         String?
-  text         String
-  
+  id         String  @id @default(cuid())
+  documentId String
+  pageNumber Int
+  type       String?
+  date       String?
+  text       String
+
   // Relation to parent document
-  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
   @@index([documentId, pageNumber])
   @@index([type])
   @@index([date])
   @@index([text])
+}
+
+model Text {
+  id                String @id @default(cuid())
+  webUrl            String
+  arweaveAddress    String
+  ipfsAddress       String
+  bittorrentAddress String
+  filename          String
+  size              Int
+  contentType       String
+}
+
+model Image {
+  id                String @id @default(cuid())
+  webUrl            String
+  arweaveAddress    String
+  ipfsAddress       String
+  bittorrentAddress String
+  filename          String
+  contentType       String
+  size              Int
+  width             Int
+  height            Int
+  creator           Json
+}
+
+model Podcast {
+  id             String   @id @default(cuid())
+  show           String // DREF of the podcast show
+  episodeNum     Int
+  seasonNum      Int
+  duration       Int
+  hosts          String[] @default([]) // Repeated DREF
+  guests         String[] @default([]) // Repeated DREF
+  explicit       Boolean  @default(false)
+  transcript     String?
+  chapters       String?
+  episodeArtwork String[] @default([]) // Repeated DREF
+  podcastArtwork String // DREF
+  license        String?
+  copyright      String?
+  sponsors       String[] @default([])
+  rssFeedUrl     String
+}
+
+model Video {
+  id                String   @id @default(cuid())
+  webUrl            String
+  arweaveAddress    String
+  ipfsAddress       String
+  bittorrentAddress String
+  filename          String
+  size              Int
+  width             Int
+  height            Int
+  duration          Int
+  contentType       String
+  thumbnails        String[] @default([]) // Repeated DREF for thumbnails
+  creator           Json
+}
+
+model Audio {
+  id                String   @id @default(cuid())
+  webUrl            String
+  arweaveAddress    String
+  ipfsAddress       String
+  bittorrentAddress String
+  filename          String
+  size              Int
+  duration          Int
+  contentType       String
+  thumbnails        String[] @default([]) // Repeated DREF for thumbnails
+  creator           Json
+}
+
+model Post {
+  id                    String   @id @default(cuid())
+  webUrl                String   @unique
+  bylineWriter          String
+  bylineWritersTitle    String
+  bylineWritersLocation String?
+  articleText           String // DREF
+  featuredImage         String? // DREF
+  imageItems            String[] @default([]) // Repeated DREF for images
+  imageCaptionItems     String[] @default([]) // Repeated captions for images
+  videoItems            String[] @default([]) // Repeated DREF for videos
+  audioItems            String[] @default([]) // Repeated DREF for audio
+  audioCaptionItems     String[] @default([]) // Repeated captions for audio
+  replyTo               String? // DREF of the post being replied to
 }
 
 model NewsSource {
@@ -150,67 +240,4 @@ model NewsSource {
   @@index([name])
   @@index([isActive])
   @@index([isDisabled])
-  NewsArticle NewsArticle[]
-  Post        Post[]
-}
-
-model NewsArticle {
-  id          String   @id @default(cuid())
-  sourceId    String
-  title       String
-  url         String   @unique
-  summary     String?  @db.Text
-  publishedAt DateTime?
-  
-  // Future fields for full-text search, etc.
-  fullText    String?  @db.Text
-  
-  // Relation to NewsSource
-  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  
-  // Relation to ArticleMedia
-  media       ArticleMedia[]
-  
-  @@index([sourceId])
-  @@index([title])
-}
-
-model ArticleMedia {
-  id          String      @id @default(cuid())
-  articleId   String
-  url         String
-  title       String?
-  caption     String?     @db.Text
-  type        MediaType
-  createdAt   DateTime    @default(now())
-  
-  // Relation to NewsArticle
-  article     NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  
-  @@index([articleId])
-  @@index([type])
-}
-
-enum MediaType {
-  VIDEO
-  IMAGE
-}
-
-model Post {
-  id          String   @id @default(cuid())
-  sourceId    String
-  name        String
-  date        DateTime
-  description String?  @db.Text
-  webUrl      String?
-  nsfw        Boolean  @default(false)
-  tagItems    String[]
-  post        Json?
-  blockchain  String
-
-  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-
-  @@index([name])
-  @@index([date])
-  @@index([blockchain])
 }
