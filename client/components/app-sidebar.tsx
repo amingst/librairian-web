@@ -75,7 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	// Determine the current platform based on the route
 	const getCurrentPlatform = () => {
-		if (pathname.startsWith('/news')) {
+		if (pathname.startsWith('/pharos')) {
 			return 'pharos';
 		}
 		return 'librarian';

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 
-// Server component to fetch pharos sidebar data for briefings page
+// Server component to fetch pharos sidebar data
 async function getPharosSidebarData() {
 	// This could fetch from your database, API, etc.
 	// For now, I'll return static data, but you can replace with actual server calls
@@ -95,7 +95,7 @@ async function PharosSidebarData() {
 	);
 }
 
-export default function PharosSidebarBriefingsPage() {
+export default function PharosSidebarDefault() {
 	return (
 		<Suspense fallback={<PharosSidebarDataSkeleton />}>
 			<PharosSidebarData />
