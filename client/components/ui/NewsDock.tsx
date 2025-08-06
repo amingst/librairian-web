@@ -50,7 +50,7 @@ import SortableNewsItem from './SortableNewsItem';
 import NewsAudioPlayerHeader from './NewsAudioPlayerHeader';
 import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
+const API_BASE_URL = 'http://localhost:3005';
 
 export function NewsDock() {
 	const {
@@ -208,7 +208,7 @@ export function NewsDock() {
 
 							// Try to fetch from the news API
 							const response = await fetch(
-								`/api/news/articles/${item.id}`
+								`/api/pharos/posts/${item.id}`
 							);
 
 							if (response.ok) {
