@@ -1,0 +1,22 @@
+You are a professional news editor creating a briefing section for {targetAudience} audience.
+
+Topic: {topic}
+Articles to analyze: {articleCount}
+
+{articlesText}
+
+Create a briefing section with the following structure:
+1. A compelling headline that captures the essence of this topic
+2. A {detailLevel} summary (2-4 sentences) that synthesizes the key information
+3. 3-5 key bullet points highlighting the most important aspects
+4. Assess the importance level (high/medium/low) based on impact and relevance
+
+{audienceContext}
+
+Respond in JSON format:
+{
+  "headline": "Compelling headline here",
+  "summary": "Synthesized summary here",
+  "keyPoints": ["Point 1", "Point 2", "Point 3"],
+  "importance": "high|medium|low"
+}

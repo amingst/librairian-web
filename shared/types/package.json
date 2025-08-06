@@ -1,0 +1,19 @@
+{
+	"name": "@shared/types",
+	"description": "Shared TypeScript types for news scraper applications",
+	"version": "1.0.0",
+	"main": "index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist/**/*"
+	],
+	"scripts": {
+		"build": "tsc",
+		"build:watch": "tsc --watch",
+		"clean": "rm -rf dist && rm -rf node_modules",
+		"prepublishOnly": "npm run clean && npm run build",
+		"dev": "tsc --watch"
+	},
+	"author": "Andrew Mingst",
+	"license": "MIT"
+}

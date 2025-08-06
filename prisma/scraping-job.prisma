@@ -1,0 +1,17 @@
+// This file extends the Prisma schema with news scraping job models
+
+model ScrapingJob {
+  id        String    @id
+  type      String    // Type of job: 'homepage_scrape', 'article_scrape', etc.
+  status    String    // 'pending', 'processing', 'completed', 'failed'
+  urls      String[]  // List of URLs to scrape
+  settings  Json?     // Job settings like limit, etc.
+  results   String?   @db.Text  // JSON string of scraped results
+  error     String?   @db.Text  // Error message if job failed
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  stats     Json?     // Job statistics
+  
+  @@index([status])
+  @@index([type])
+}

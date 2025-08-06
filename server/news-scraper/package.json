@@ -1,0 +1,49 @@
+{
+	"name": "@server/news-scraper",
+	"version": "1.0.0",
+	"description": "MCP server for HTML scraping and content extraction",
+	"main": "build/main.js",
+	"type": "module",
+	"bin": {
+		"@server/news-scraper": "./build/main.js"
+	},
+	"scripts": {
+		"build": "tsc && chmod +x build/main.js",
+		"start": "node build/main.js",
+		"dev": "tsx watch src/main.ts",
+		"clean": "rm -rf build && rm -rf node_modules",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"mcp",
+		"html",
+		"scraper",
+		"web-scraping",
+		"model-context-protocol"
+	],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/express": "^5.0.3",
+		"@types/node": "^24.1.0",
+		"dotenv": "^17.2.1",
+		"nodemon": "^3.1.10",
+		"tsx": "^4.20.3",
+		"typescript": "^5.8.3"
+	},
+	"dependencies": {
+		"@mendable/firecrawl": "^1.29.2",
+		"@mendable/firecrawl-js": "^1.29.2",
+		"@modelcontextprotocol/sdk": "^1.17.0",
+		"@shared/backend": "file:../../shared/backend",
+		"@shared/types": "file:../../shared/types",
+		"@types/puppeteer": "^5.4.7",
+		"axios": "^1.11.0",
+		"cheerio": "^1.1.2",
+		"express": "^5.1.0",
+		"inversify": "^7.6.1",
+		"puppeteer": "^24.15.0",
+		"reflect-metadata": "^0.2.2",
+		"zod": "^3.25.76"
+	}
+}

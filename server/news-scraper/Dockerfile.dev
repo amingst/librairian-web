@@ -1,0 +1,46 @@
+FROM node:24-alpine3.21
+
+# Install dependencies
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files for workspace setup
+COPY package*.json ./
+COPY shared/types/package*.json ./shared/types/
+COPY shared/backend/package*.json ./shared/backend/
+COPY server/news-scraper/package*.json ./server/news-scraper/
+
+# Install dependencies for the workspace
+RUN npm install
+
+# Install dependencies for shared packages specifically
+WORKDIR /app/shared/types
+RUN npm install
+
+WORKDIR /app/shared/backend
+RUN npm install
+
+# Copy source code
+WORKDIR /app
+COPY shared/types/ ./shared/types/
+COPY shared/backend/ ./shared/backend/
+COPY server/news-scraper/ ./server/news-scraper/
+
+# Build shared packages
+WORKDIR /app/shared/types
+RUN npm run build
+
+WORKDIR /app/shared/backend
+RUN npm run build
+
+# Set working directory to the service
+WORKDIR /app/server/news-scraper
+
+ENV NODE_ENV=development
+ENV PORT=3001
+
+EXPOSE 3001
+
+# Use development command with watch mode
+CMD ["npm", "run", "dev"]

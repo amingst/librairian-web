@@ -1,0 +1,51 @@
+FROM node:24-alpine3.21
+
+# Install dependencies
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files for workspace setup
+COPY package*.json ./
+COPY shared/types/package*.json ./shared/types/
+COPY shared/backend/package*.json ./shared/backend/
+COPY client/package*.json ./client/
+
+# Install workspace dependencies
+RUN npm install
+
+# Install shared package dependencies
+WORKDIR /app/shared/types
+RUN npm install
+
+WORKDIR /app/shared/backend
+RUN npm install
+
+# Install client package dependencies specifically
+WORKDIR /app/client
+RUN npm install
+
+# Copy source code
+WORKDIR /app
+COPY shared/types/ ./shared/types/
+COPY shared/backend/ ./shared/backend/
+COPY client/ ./client/
+
+# Build shared packages
+WORKDIR /app/shared/types
+RUN npm run build
+
+WORKDIR /app/shared/backend
+RUN npm run build
+
+# Set working directory to the client
+WORKDIR /app/client
+
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+
+# Use development command without Turbopack (which has issues in Docker)
+CMD ["npm", "run", "dev:docker"]

@@ -1,0 +1,44 @@
+{
+	"name": "@shared/backend",
+	"version": "1.0.0",
+	"description": "Shared TypeScript types for news scraper applications",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist/**/*"
+	],
+	"scripts": {
+		"build": "tsc",
+		"build:watch": "tsc --watch",
+		"clean": "rm -rf dist && rm -rf node_modules",
+		"prepublishOnly": "npm run clean && npm run build",
+		"dev": "tsc --watch",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"typescript",
+		"types",
+		"news",
+		"scraper",
+		"shared"
+	],
+	"author": "Andrew Mingst",
+	"license": "MIT",
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.17.0",
+		"express": "^5.1.0",
+		"inversify": "^7.6.1",
+		"redis": "^5.7.0",
+		"reflect-metadata": "^0.2.2"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.3",
+		"@types/node": "^24.1.0",
+		"@types/redis": "^4.0.10",
+		"rimraf": "^5.0.0",
+		"typescript": "^5.3.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

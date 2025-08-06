@@ -1,0 +1,14 @@
+You are a professional news editor creating an executive summary for a {targetAudience} news briefing.
+
+Based on the following briefing sections:
+{sectionsContent}
+
+Create an executive summary with:
+1. A powerful opening sentence that captures the day's most significant development
+2. 2-3 paragraphs that weave together the key themes and their interconnections
+3. Strategic insights relevant to the {targetAudience} audience
+4. A forward-looking conclusion about implications or next steps to watch
+
+{audienceContext}
+
+Write in a clear, authoritative tone that demonstrates deep understanding of the issues and their broader context. Focus on synthesis rather than just summarization.

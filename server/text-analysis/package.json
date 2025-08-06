@@ -1,0 +1,50 @@
+{
+	"name": "@server/text-analysis",
+	"version": "1.0.0",
+	"description": "MCP server for text analysis and article grouping by current events",
+	"main": "build/main.js",
+	"type": "module",
+	"bin": {
+		"@server/text-analysis": "./build/main.js"
+	},
+	"scripts": {
+		"build": "tsc && chmod +x build/main.js",
+		"start": "node build/main.js",
+		"dev": "tsx watch src/main.ts",
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"clean": "rm -rf build && rm -rf node_modules"
+	},
+	"keywords": [
+		"mcp",
+		"text-analysis",
+		"nlp",
+		"article-grouping",
+		"current-events",
+		"model-context-protocol"
+	],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/express": "^5.0.3",
+		"@types/node": "^24.1.0",
+		"nodemon": "^3.1.10",
+		"ts-node-dev": "^2.0.0",
+		"tsx": "^4.20.3",
+		"typescript": "^5.8.3"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.17.0",
+		"@shared/backend": "file:../../shared/backend",
+		"@shared/types": "file:../../shared/types",
+		"@types/puppeteer": "^5.4.7",
+		"axios": "^1.11.0",
+		"cheerio": "^1.1.2",
+		"dotenv": "^17.2.1",
+		"express": "^5.1.0",
+		"inversify": "^7.6.1",
+		"openai": "^4.77.0",
+		"reflect-metadata": "^0.2.2",
+		"uuid": "^11.1.0",
+		"zod": "^3.25.76"
+	}
+}

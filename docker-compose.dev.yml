@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+    # HTML Scraper MCP Service (Development)
+    server-news-scraper-dev:
+        build:
+            context: .
+            dockerfile: server/news-scraper/Dockerfile.dev
+        container_name: server-news-scraper-dev
+        restart: unless-stopped
+        ports:
+            - '3001:3001'
+        environment:
+            - NODE_ENV=development
+            - PORT=3001
+            - HOST=0.0.0.0
+            - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+            - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
+            - REDIS_URL=redis://redis:6379
+        env_file:
+            - server/news-scraper/.env
+        volumes:
+            - ./server/news-scraper/src:/app/server/news-scraper/src
+            - ./shared/types/src:/app/shared/types/src
+            - ./shared/backend/src:/app/shared/backend/src
+        networks:
+            - news-scraper-network
+
+    # Text Analysis MCP Service (Development)
+    server-text-analysis-dev:
+        build:
+            context: .
+            dockerfile: server/text-analysis/Dockerfile.dev
+        container_name: server-text-analysis-dev
+        restart: unless-stopped
+        ports:
+            - '3002:3002'
+        environment:
+            - NODE_ENV=development
+            - PORT=3002
+            - HOST=0.0.0.0
+            - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
+            - REDIS_URL=redis://redis:6379
+        env_file:
+            - server/text-analysis/.env
+        volumes:
+            - ./server/text-analysis/src:/app/server/text-analysis/src
+            - ./shared/types/src:/app/shared/types/src
+            - ./shared/backend/src:/app/shared/backend/src
+        networks:
+            - news-scraper-network
+
+    # Next.js Client Application (Development)
+    client-dev:
+        build:
+            context: .
+            dockerfile: client/Dockerfile.dev
+        container_name: client-dev
+        restart: unless-stopped
+        ports:
+            - '3000:3000'
+        environment:
+            - NODE_ENV=development
+            - PORT=3000
+            - NEXT_TELEMETRY_DISABLED=1
+            - HTML_SCRAPER_URL=http://server-news-scraper-dev:3001
+            - TEXT_ANALYSIS_URL=http://server-text-analysis-dev:3002
+            - REDIS_URL=redis://redis:6379
+        volumes:
+            - ./client/src:/app/client/src
+            - ./shared:/app/shared
+            - ./client/public:/app/client/public
+        depends_on:
+            - server-news-scraper-dev
+            - server-text-analysis-dev
+            - postgres
+            - redis
+        networks:
+            - news-scraper-network
+
+    # Redis Cache (Development)
+    redis:
+        image: redis:latest
+        container_name: redis
+        restart: unless-stopped
+        ports:
+            - '6379:6379'
+        command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - redis_dev_data:/data
+
+    # PostgreSQL Database (Development)
+    postgres:
+        image: postgres:16-alpine
+        container_name: postgres
+        restart: unless-stopped
+        ports:
+            - '5432:5432'
+        environment:
+            - POSTGRES_DB=jfk_files
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=password
+        volumes:
+            - postgres_dev_data:/var/lib/postgresql/data
+            - ./client/prisma/add_fulltext_index.sql:/docker-entrypoint-initdb.d/add_fulltext_index.sql
+        networks:
+            - news-scraper-network
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U postgres']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    # pgAdmin (Development)
+    pgadmin-dev:
+        image: dpage/pgadmin4:latest
+        container_name: pgadmin-dev
+        restart: unless-stopped
+        ports:
+            - '5050:80'
+        environment:
+            - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+            - PGADMIN_DEFAULT_PASSWORD=admin
+            - PGADMIN_CONFIG_SERVER_MODE=False
+        volumes:
+            - pgadmin_dev_data:/var/lib/pgadmin
+        depends_on:
+            - postgres
+        networks:
+            - news-scraper-network
+
+volumes:
+    postgres_dev_data:
+    pgadmin_dev_data:
+    redis_dev_data:
+        driver: local
+
+networks:
+    news-scraper-network:
+        driver: bridge
