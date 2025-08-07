@@ -15,7 +15,12 @@ export async function GET(request: NextRequest) {
 			orderBy: {
 				id: 'desc', // Using ID as a proxy for most recent since no timestamp
 			},
+			include: {
+				source: true, // Include source information
+			},
 		});
+
+		console.log(posts[0]);
 
 		return NextResponse.json({
 			success: true,

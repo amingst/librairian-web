@@ -184,6 +184,52 @@ export class TextAnalysisMCPClient {
 		return result;
 	}
 
+	// Added method for article summarizer tool
+	async summarizeArticlesBatch(
+		articles: { title: string; content: string; source?: string; date?: string }[],
+		audience: 'general' | 'investor' | 'academic' | 'technical' | 'executive' = 'general',
+		detail: 'brief' | 'standard' | 'comprehensive' = 'brief'
+	): Promise<any> {
+		if (!this.client || !this.isConnected) {
+			throw new Error('Client not connected');
+		}
+		const result = await this.client.callTool({
+			name: 'summarize_articles_batch',
+			arguments: { articles, audience, detail },
+		});
+		return this.parseToolResult(result);
+	}
+
+	// New: Create a news briefing from precomputed summaries by Post IDs
+	async createNewsBriefingFromSummaries(
+		postIds: string[],
+		options: {
+			briefingType?: 'executive' | 'detailed' | 'summary';
+			targetAudience?: 'general' | 'business' | 'technical' | 'academic';
+			includeSourceAttribution?: boolean;
+			includeAllSections?: boolean;
+			maxSections?: number;
+			prioritizeTopics?: string[];
+		} = {}
+	): Promise<any> {
+		if (!this.client || !this.isConnected) {
+			throw new Error('Client not connected');
+		}
+		const result = await this.client.callTool({
+			name: 'create_news_briefing_from_summaries',
+			arguments: {
+				ids: postIds, // corrected
+				briefingType: options.briefingType || 'summary',
+				targetAudience: options.targetAudience || 'general',
+				includeSourceAttribution: options.includeSourceAttribution ?? true,
+				includeAllSections: options.includeAllSections ?? true,
+				maxSections: options.maxSections || 10,
+				prioritizeTopics: options.prioritizeTopics,
+			},
+		});
+		return this.parseToolResult(result);
+	}
+
 	get connected(): boolean {
 		return this.isConnected;
 	}

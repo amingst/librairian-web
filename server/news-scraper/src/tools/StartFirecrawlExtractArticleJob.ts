@@ -328,19 +328,39 @@ export class StartFirecrawlExtractArticleJob extends MCPTool {
 				`Updating post ${postId} with extracted content from ${sourceUrl}`
 			);
 
+			// Fetch existing title first so we do not overwrite a previously stored title
+			const existing = await this.prisma.post.findUnique({
+				where: { id: postId },
+				select: { title: true },
+			});
+
 			// Extract the content from the extraction result
 			const { title, author, content, publicationDate } = extractedData;
 
-			// Update the post with the extracted content
+			// Look up the NewsSource for this domain
+			const hostname = new URL(sourceUrl).hostname;
+			const newsSource = await this.findNewsSourceByDomain(hostname);
+			const sourceId = newsSource?.id || null;
+
+			const updateData: any = {
+				articleText: content || '',
+				sourceId: sourceId,
+			};
+
+			// Only set title if we extracted one AND existing title is empty/null
+			if (title && (!existing?.title || existing.title.trim() === '')) {
+				updateData.title = title;
+			}
+
+			if (author) {
+				updateData.bylineWriter = author;
+			}
+
 			await this.prisma.post.update({
 				where: {
 					id: postId,
 				},
-				data: {
-					articleText: content || '',
-					bylineWriter: author || undefined,
-					// Add other fields as needed
-				},
+				data: updateData,
 			});
 
 			console.log(`✅ Updated post ${postId} with extracted content`);
@@ -370,6 +390,7 @@ export class StartFirecrawlExtractArticleJob extends MCPTool {
 			const newPost = await this.prisma.post.create({
 				data: {
 					webUrl: sourceUrl,
+					title: title || null, // Store the extracted title
 					bylineWriter: author || 'Unknown',
 					bylineWritersTitle: 'Reporter',
 					bylineWritersLocation: hostname,
@@ -384,6 +405,41 @@ export class StartFirecrawlExtractArticleJob extends MCPTool {
 		} catch (error) {
 			console.error(`Error creating post for ${sourceUrl}:`, error);
 			// Continue with other posts even if one fails
+		}
+	}
+
+	/**
+	 * Find a NewsSource record by domain
+	 * @param domain - The domain to search for (e.g., "cnn.com")
+	 * @returns NewsSource record if found, null otherwise
+	 */
+	private async findNewsSourceByDomain(domain: string) {
+		try {
+			// Try to find NewsSource by URL containing the domain
+			const newsSource = await this.prisma.newsSource.findFirst({
+				where: {
+					OR: [
+						{ url: { contains: domain, mode: 'insensitive' } },
+						{ name: { contains: domain, mode: 'insensitive' } },
+					],
+				},
+			});
+
+			if (newsSource) {
+				console.log(
+					`Found NewsSource for domain ${domain}: ${newsSource.name}`
+				);
+			} else {
+				console.log(`No NewsSource found for domain: ${domain}`);
+			}
+
+			return newsSource;
+		} catch (error) {
+			console.error(
+				`Error finding NewsSource for domain ${domain}:`,
+				error
+			);
+			return null;
 		}
 	}
 }

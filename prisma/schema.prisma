@@ -203,6 +203,8 @@ model Audio {
 model Post {
   id                    String   @id @default(cuid())
   webUrl                String   @unique
+  title                 String?  // Article title/headline
+  sourceId              String?  // Reference to NewsSource.id
   bylineWriter          String
   bylineWritersTitle    String
   bylineWritersLocation String?
@@ -214,6 +216,13 @@ model Post {
   audioItems            String[] @default([]) // Repeated DREF for audio
   audioCaptionItems     String[] @default([]) // Repeated captions for audio
   replyTo               String? // DREF of the post being replied to
+  summary              String? @db.Text // Short summary of the article
+  
+  // Relations
+  source                NewsSource? @relation(fields: [sourceId], references: [id])
+  
+  @@index([sourceId])
+  @@index([title])
 }
 
 model NewsSource {
@@ -234,10 +243,35 @@ model NewsSource {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  // Future relationship (when you add Article model)
-  // articles    Article[]
+  // Relations
+  posts       Post[]   // Posts from this source
   
   @@index([name])
   @@index([isActive])
   @@index([isDisabled])
+}
+
+// This file extends the Prisma schema with news scraping job models
+
+model ScrapingJob {
+  id        String    @id
+  type      String
+  status    String              // pending | processing | completed | failed
+  urls      String[]            // URLs batch (can be empty if type implies discovery)
+  settings  Json?               // Input params
+  results   String?   @db.Text
+  error     String?   @db.Text
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  stats     Json?
+
+  // New fields
+  progress  Int       @default(0)     // 0–100
+  processed Int       @default(0)     // units done
+  total     Int       @default(0)     // planned units
+  message   String?                 // short status line
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@index([type])
 }

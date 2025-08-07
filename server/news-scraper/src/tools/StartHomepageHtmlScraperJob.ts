@@ -448,23 +448,46 @@ export class StartHomepageHtmlScraperJob extends MCPTool {
 				hostname = 'unknown';
 			}
 
+			// Look up the NewsSource record for this domain
+			const newsSource = await this.findNewsSourceByDomain(hostname);
+			const sourceId = newsSource?.id || null;
+
 			// Create data object
 			const createData = {
 				webUrl: article.link,
+				title: article.title || null, // Store the article title
+				sourceId: sourceId, // Link to NewsSource if found
 				bylineWriter: article.source.author || 'Unknown',
 				bylineWritersTitle: article.source.section || 'Reporter',
 				bylineWritersLocation: article.source.domain || hostname,
-				articleText: article.title || '', // Store title as placeholder until full content is extracted
+				articleText: '', // Empty placeholder so later extraction jobs know content not yet fetched
 				featuredImage: article.image || null,
 			};
 
-			// The update data is similar but doesn't include articleText
-			const updateData = {
+			// The update data is similar but avoids overwriting an existing title.
+			const updateData: any = {
+				sourceId: sourceId, // Link to NewsSource if found
 				bylineWriter: article.source.author || 'Unknown',
 				bylineWritersTitle: article.source.section || 'Reporter',
 				bylineWritersLocation: article.source.domain || hostname,
 				featuredImage: article.image || null,
 			};
+			// Only set title in update if we do NOT already have a title (avoid overwriting later refined titles)
+			try {
+				const existing = await this.prisma.post.findUnique({
+					where: { webUrl: article.link },
+					select: { title: true },
+				});
+				if (
+					!existing ||
+					!existing.title ||
+					existing.title.trim() === ''
+				) {
+					updateData.title = article.title || null;
+				}
+			} catch (e) {
+				// Fallback: if lookup fails, do not set title in update to stay safe
+			}
 
 			// Upsert a Post record
 			const result = await this.prisma.post.upsert({
@@ -485,6 +508,76 @@ export class StartHomepageHtmlScraperJob extends MCPTool {
 			);
 			console.error(`Error details:`, dbError);
 			throw error; // Re-throw to let caller handle
+		}
+	}
+
+	/**
+	 * Find a NewsSource record by domain name
+	 */
+	private async findNewsSourceByDomain(
+		domain: string
+	): Promise<{ id: string; name: string } | null> {
+		try {
+			// Try exact match first
+			let newsSource = await this.prisma.newsSource.findFirst({
+				where: {
+					url: {
+						contains: domain,
+						mode: 'insensitive',
+					},
+					isActive: true,
+				},
+				select: {
+					id: true,
+					name: true,
+				},
+			});
+
+			// If no exact match, try name matching
+			if (!newsSource) {
+				// Extract base domain (remove www. prefix)
+				const baseDomain = domain.replace(/^www\./, '');
+
+				newsSource = await this.prisma.newsSource.findFirst({
+					where: {
+						OR: [
+							{
+								name: {
+									contains: baseDomain.split('.')[0],
+									mode: 'insensitive',
+								},
+							},
+							{
+								url: {
+									contains: baseDomain,
+									mode: 'insensitive',
+								},
+							},
+						],
+						isActive: true,
+					},
+					select: {
+						id: true,
+						name: true,
+					},
+				});
+			}
+
+			if (newsSource) {
+				console.log(
+					`Found NewsSource: ${newsSource.name} (${newsSource.id}) for domain: ${domain}`
+				);
+			} else {
+				console.log(`No NewsSource found for domain: ${domain}`);
+			}
+
+			return newsSource;
+		} catch (error) {
+			console.error(
+				`Error finding NewsSource for domain ${domain}:`,
+				error
+			);
+			return null;
 		}
 	}
 

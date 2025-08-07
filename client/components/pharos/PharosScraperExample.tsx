@@ -182,6 +182,7 @@ export default function NewsScraperExample() {
 
 	const [scraping, setScraping] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [summarizing, setSummarizing] = useState(false); // Added
 	const [textAnalysisClient] = useState(() => new TextAnalysisMCPClient());
 	// Tool selection states
 	const [homepageTool, setHomepageTool] = useState<'firecrawl' | 'html'>(
@@ -454,6 +455,106 @@ export default function NewsScraperExample() {
 		}
 	};
 
+	// Helper: build queue item from a Post
+	const buildQueueItemFromPost = (post: Post) => ({
+		id: post.id,
+		title:
+			post.title ||
+			post.articleText?.split('\n')[0] ||
+			'Untitled Article',
+		url: post.webUrl || '',
+		type: 'article' as const,
+		source: {
+			name: post.bylineWritersLocation || 'Unknown Source',
+			site: post.bylineWritersLocation || 'Unknown Source',
+			domain: post.bylineWritersLocation || 'Unknown Source',
+		},
+		publishedAt: new Date().toISOString(),
+		excerpt: post.articleText || undefined,
+		summary: post.articleText || undefined,
+	});
+
+	const isPostInDock = (post: Post) =>
+		queue.some((item) => item.id === post.id || item.url === post.webUrl);
+
+	const areAllSourcePostsInDock = (sourcePosts: Post[]) =>
+		sourcePosts.length > 0 && sourcePosts.every(isPostInDock);
+
+	const handleAddAllSourcePosts = (sourcePosts: Post[]) => {
+		sourcePosts.forEach((p) => {
+			if (!isPostInDock(p)) addToQueue(buildQueueItemFromPost(p));
+		});
+	};
+
+	const handleRemoveAllSourcePosts = (sourcePosts: Post[]) => {
+		sourcePosts.forEach((p) => {
+			const existing = queue.find(
+				(item) => item.id === p.id || item.url === p.webUrl
+			);
+			if (existing) removeFromQueue(existing.id);
+		});
+	};
+
+	const handleSummarizeDockArticles = async () => {
+		if (queue.length === 0) {
+			alert('No items in dock to summarize');
+			return;
+		}
+		setSummarizing(true);
+		try {
+			if (!textAnalysisClient['connected']) {
+				await textAnalysisClient.connect();
+			}
+
+			let updated = 0;
+			for (const item of queue) {
+				const content = (item.summary || item.excerpt || '').trim();
+				if (!item.id || !content) continue;
+
+				// Summarize single article
+				const result = await (textAnalysisClient as any).summarizeArticlesBatch(
+					[
+						{
+							title: item.title || 'Untitled',
+							content: content.slice(0, 8000),
+							source: item.source?.name,
+							date: item.publishedAt,
+						},
+					],
+					'general',
+					'brief'
+				);
+
+				const summaryText =
+					(typeof result === 'object' && result?.summary)
+						? String(result.summary)
+						: typeof result === 'string'
+						? result
+						: JSON.stringify(result);
+
+				if (summaryText && summaryText.length > 0) {
+					const resp = await fetch(`/api/pharos/posts/${item.id}`, {
+						method: 'PUT',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ summary: summaryText }),
+					});
+					if (resp.ok) {
+						updated += 1;
+					} else {
+						console.warn('Failed to update post', item.id, await resp.text());
+					}
+				}
+			}
+
+			alert(`Summarized and saved ${updated} article(s) to the database.`);
+		} catch (e) {
+			console.error('Failed batch summarize & save:', e);
+			alert(`Failed to summarize articles: ${e instanceof Error ? e.message : e}`);
+		} finally {
+			setSummarizing(false);
+		}
+	};
+
 	if (mcp.isLoading && !mcp.isConnected) {
 		return (
 			<div className='flex items-center justify-center p-8'>
@@ -704,11 +805,24 @@ export default function NewsScraperExample() {
 							items) - HTML
 						</button>
 
+						{/* Summarize & Save button */}
+						<button
+							onClick={handleSummarizeDockArticles}
+							disabled={queue.length === 0 || summarizing}
+							className='w-full px-4 py-2 mt-3 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed'
+						>
+							{summarizing ? 'Summarizing & Saving...' : 'Summarize Dock Articles and Save to DB'}
+						</button>
+
+						{summarizing && (
+							<div className='mt-3 text-center text-sm text-gray-600'>
+								Generating summaries and updating posts...
+							</div>
+						)}
+
 						{selection.count > 2 && (
 							<div className='mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-yellow-800 dark:text-yellow-200'>
-								⚠️ Only the first 2 sources will be scraped to
-								avoid timeouts. Deselect some sources or scrape
-								in multiple batches.
+								⚠️ Only the first 2 sources will be scraped to avoid timeouts. Deselect some sources or scrape in multiple batches.
 							</div>
 						)}
 
@@ -719,9 +833,7 @@ export default function NewsScraperExample() {
 							className='w-full px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
 						>
 							<DatabaseIcon className='w-4 h-4' />
-							{loading
-								? 'Loading...'
-								: 'Load News Articles from Database'}
+							{loading ? 'Loading...' : 'Load News Articles from Database'}
 						</button>
 
 						{loading && (
@@ -818,11 +930,48 @@ export default function NewsScraperExample() {
 											key={`source-${sourceName}`}
 											className='border rounded-lg p-4 h-96 flex flex-col'
 										>
-											<h4 className='font-semibold text-lg mb-3'>
-												{sourceName}
-												<span className='text-sm text-gray-600 ml-2'>
-													({sourcePosts.length}{' '}
-													articles)
+											<h4 className='font-semibold text-lg mb-3 flex items-center justify-between gap-2'>
+												<span>
+													{sourceName}
+													<span className='text-sm text-gray-600 ml-2'>
+														({sourcePosts.length}{' '}
+														articles)
+													</span>
+												</span>
+												<span className='flex gap-1'>
+													{areAllSourcePostsInDock(
+														sourcePosts
+													) ? (
+														<button
+															onClick={(e) => {
+																e.stopPropagation();
+																handleRemoveAllSourcePosts(
+																	sourcePosts
+																);
+															}}
+															className='text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60 text-red-700 dark:text-red-200'
+															title={
+																"Remove all this source's articles from dock"
+															}
+														>
+															Deselect All
+														</button>
+													) : (
+														<button
+															onClick={(e) => {
+																e.stopPropagation();
+																handleAddAllSourcePosts(
+																	sourcePosts
+																);
+															}}
+															className='text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-200'
+															title={
+																"Add all this source's articles to dock"
+															}
+														>
+															Select All
+														</button>
+													)}
 												</span>
 											</h4>
 											<ScrollArea className='h-80 flex-1'>
@@ -864,6 +1013,7 @@ export default function NewsScraperExample() {
 																	addToQueue({
 																		id: postId,
 																		title:
+																			post.title ||
 																			post.articleText?.split(
 																				'\n'
 																			)[0] ||
@@ -916,9 +1066,10 @@ export default function NewsScraperExample() {
 																</div>
 																<div className='flex-1 min-w-0'>
 																	<div className='font-medium text-sm leading-tight mb-1'>
-																		{post.articleText?.split(
-																			'\n'
-																		)[0] ||
+																		{post.title ||
+																			post.articleText?.split(
+																				'\n'
+																			)[0] ||
 																			'Untitled Article'}
 																	</div>
 																	{post.articleText && (

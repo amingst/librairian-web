@@ -54,8 +54,8 @@ export class MCPHttpServer {
 
 	private setupExpress(config: ExpressServerConfig) {
 		// Middleware
-		this.expressApp.use(express.json());
-		this.expressApp.use(express.urlencoded({ extended: true }));
+		this.expressApp.use(express.json({ limit: '1mb' }));
+		this.expressApp.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 		// CORS headers
 		this.expressApp.use((req, res, next) => {

@@ -7,48 +7,73 @@ import { ArticleGrouperTool } from './ArticleGrouper.js';
 import OpenAI from 'openai';
 import config from '../config.js';
 import { promptLoader } from '../utils/PromptLoader.js';
+import { PrismaClient } from '@prisma/client';
+import { PrismaClientFactory } from '@shared/backend';
 
-const NewsBriefingSchema = z.object({
-	articles: z
-		.array(
-			z.object({
-				id: z.string().optional(),
-				title: z.string(),
-				link: z.string().url(),
-				excerpt: z.string().optional(),
-				source: z.object({
-					site: z.string(),
-					domain: z.string(),
-					section: z.string().optional(),
-				}),
-				publishDate: z.string().optional(),
-			})
-		)
-		.min(1)
-		.describe('Array of news articles to create briefing from'),
-	briefingType: z
-		.enum(['executive', 'detailed', 'summary'])
-		.default('summary')
-		.describe('Type of briefing to generate'),
-	targetAudience: z
-		.enum(['general', 'business', 'technical', 'academic'])
-		.default('general')
-		.describe('Target audience for the briefing'),
-	includeSourceAttribution: z
-		.boolean()
-		.default(true)
-		.describe('Whether to include source links and citations'),
-	maxSections: z
-		.number()
-		.min(3)
-		.max(20)
-		.default(10)
-		.describe('Maximum number of sections in the briefing'),
-	prioritizeTopics: z
-		.array(z.string())
-		.optional()
-		.describe('Topics to prioritize in the briefing'),
-});
+const NewsBriefingSchema = z
+	.object({
+		articles: z
+			.array(
+				z.object({
+					id: z.string().optional(),
+					title: z.string(),
+					link: z.string().url(),
+					excerpt: z.string().optional(),
+					source: z.object({
+						site: z.string(),
+						domain: z.string(),
+						section: z.string().optional(),
+					}),
+					publishDate: z.string().optional(),
+				})
+			)
+			.optional()
+			.describe(
+				'Array of news articles to create briefing from (optional if ids provided)'
+			),
+		ids: z
+			.array(z.string())
+			.optional()
+			.describe('Array of article/post IDs to load from the database'),
+		briefingType: z
+			.enum(['executive', 'detailed', 'summary'])
+			.default('summary')
+			.describe('Type of briefing to generate'),
+		targetAudience: z
+			.enum(['general', 'business', 'technical', 'academic'])
+			.default('general')
+			.describe('Target audience for the briefing'),
+		includeSourceAttribution: z
+			.boolean()
+			.default(true)
+			.describe('Whether to include source links and citations'),
+		maxSections: z
+			.number()
+			.min(3)
+			.max(20)
+			.default(10)
+			.describe(
+				'Maximum number of sections in the briefing (ignored if includeAllSections=true)'
+			),
+		prioritizeTopics: z
+			.array(z.string())
+			.optional()
+			.describe('Topics to prioritize in the briefing'),
+		includeAllSections: z
+			.boolean()
+			.default(true)
+			.describe(
+				'If true (default) include all generated sections and ignore maxSections slice'
+			),
+	})
+	.refine(
+		(data) =>
+			(data.articles && data.articles.length) ||
+			(data.ids && data.ids.length),
+		{
+			message: 'Either articles or ids must be provided',
+		}
+	);
 
 interface BriefingSection {
 	topic: string;
@@ -83,6 +108,7 @@ export class NewsBriefingTool extends MCPTool {
 	private audienceContexts: Record<string, string> = {};
 	private detailLevels: Record<string, string> = {};
 	private audienceTitles: Record<string, string> = {};
+	private prisma: PrismaClient;
 
 	constructor(
 		@inject(TYPES.ArticleGrouper) private articleGrouper: ArticleGrouperTool
@@ -99,6 +125,8 @@ export class NewsBriefingTool extends MCPTool {
 
 		// Load configuration data
 		this.loadConfigData();
+
+		this.prisma = PrismaClientFactory.getInstance('news-sources');
 
 		console.log('✅ News Briefing Tool initialized');
 	}
@@ -164,21 +192,59 @@ export class NewsBriefingTool extends MCPTool {
 	): Promise<NewsBriefing> {
 		const startTime = Date.now();
 
+		let workingArticles = params.articles;
+		if (!workingArticles && params.ids) {
+			// Load posts from DB by IDs
+			const posts = await this.prisma.post.findMany({
+				where: { id: { in: params.ids } },
+				include: { source: true },
+			});
+
+			workingArticles = posts.map((p) => {
+				let domain: string;
+				try {
+					domain = new URL(p.webUrl).hostname;
+				} catch {
+					domain = 'unknown';
+				}
+				return {
+					id: p.id,
+					title: p.title || 'Untitled',
+					link: p.webUrl,
+					excerpt: (p.articleText || '').slice(0, 1000),
+					source: {
+						site: p.source?.name || domain,
+						domain,
+						section: undefined,
+					},
+					publishDate: undefined,
+				};
+			});
+		}
+
+		if (!workingArticles || workingArticles.length === 0) {
+			throw new Error('No articles resolved from provided input');
+		}
+
 		try {
 			console.log(
-				`📰 Creating ${params.briefingType} briefing for ${params.articles.length} articles`
+				`📰 Creating ${params.briefingType} briefing for ${
+					workingArticles.length
+				} articles (input mode: ${params.ids ? 'ids' : 'articles'})`
 			);
 
 			// Step 1: Group articles by topics
 			const groupedArticles = await this.articleGrouper.execute({
-				articles: params.articles,
+				articles: workingArticles,
 				options: {
-					maxGroups: params.maxSections,
+					maxGroups: params.includeAllSections
+						? 50
+						: params.maxSections,
 					minArticlesPerGroup: 1,
 					useOpenAI: true,
 					extractFullContent: true,
-					minContentLength: 50, // Lower threshold for briefings
-					skipContentFiltering: false, // Still filter, but with lower threshold
+					minContentLength: 50,
+					skipContentFiltering: false,
 				},
 			});
 			console.log(
@@ -190,7 +256,7 @@ export class NewsBriefingTool extends MCPTool {
 			// Step 2: Generate briefing sections for each group
 			const sections = await this.generateBriefingSections(
 				groupedArticles,
-				params
+				{ ...params, articles: workingArticles }
 			);
 
 			// Step 3: Create overall briefing summary
@@ -200,20 +266,25 @@ export class NewsBriefingTool extends MCPTool {
 			);
 
 			// Step 4: Compile final briefing
+			const allSections = sections.sort(
+				(a, b) =>
+					this.getImportanceScore(b.importance) -
+					this.getImportanceScore(a.importance)
+			);
+
+			const finalSections = params.includeAllSections
+				? allSections
+				: allSections.slice(0, params.maxSections);
+
+			// Step 4: Compile final briefing
 			const briefing: NewsBriefing = {
 				title: this.generateBriefingTitle(params.targetAudience),
 				generatedAt: new Date().toISOString(),
 				summary: briefingSummary,
-				sections: sections
-					.sort(
-						(a, b) =>
-							this.getImportanceScore(b.importance) -
-							this.getImportanceScore(a.importance)
-					)
-					.slice(0, params.maxSections),
-				totalArticles: params.articles.length,
+				sections: finalSections,
+				totalArticles: workingArticles.length,
 				sources: [
-					...new Set(params.articles.map((a) => a.source.site)),
+					...new Set(workingArticles.map((a) => a.source.site)),
 				],
 				metadata: {
 					briefingType: params.briefingType,
@@ -223,7 +294,9 @@ export class NewsBriefingTool extends MCPTool {
 			};
 
 			console.log(
-				`✅ News briefing created with ${briefing.sections.length} sections`
+				`✅ News briefing created with ${
+					briefing.sections.length
+				} sections (input mode: ${params.ids ? 'ids' : 'articles'})`
 			);
 
 			return briefing;

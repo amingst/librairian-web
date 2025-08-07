@@ -3,6 +3,8 @@ import { TextAnalysisTool } from '../tools/TextAnalysis.js';
 import { CurrentEventsDetectorTool } from '../tools/CurrentEventsDetector.js';
 import { BatchArticleExtractorTool } from '../tools/BatchArticleExtractor.js';
 import { NewsBriefingTool } from '../tools/NewsBriefingTool.js';
+import { ArticleSummarizerTool } from '../tools/ArticleSummarizer.js';
+import { NewsBriefingFromSummariesTool } from '../tools/NewsBriefingFromSummariesTool.js';
 import { TYPES } from './symbols.js';
 import type { IMCPTool } from '@shared/backend';
 
@@ -30,4 +32,6 @@ export const TOOL_MAP: ToolMap = {
 	BatchArticleExtractor:
 		BatchArticleExtractorTool as unknown as ToolConstructor,
 	NewsBriefing: NewsBriefingTool as unknown as ToolConstructor,
+	ArticleSummarizer: ArticleSummarizerTool as unknown as ToolConstructor,
+	NewsBriefingFromSummaries: NewsBriefingFromSummariesTool as unknown as ToolConstructor,
 };

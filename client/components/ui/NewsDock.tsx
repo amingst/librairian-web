@@ -8,7 +8,7 @@ declare global {
 	}
 }
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNewsDock, NewsArticleItem } from '@/lib/context/NewsDockContext';
 import {
 	X,
@@ -48,9 +48,9 @@ import { useSidebar } from './sidebar';
 import BriefingPanel from './BriefingPanel';
 import SortableNewsItem from './SortableNewsItem';
 import NewsAudioPlayerHeader from './NewsAudioPlayerHeader';
-import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 
 const API_BASE_URL = 'http://localhost:3005';
+const MAX_INPUT_TOKENS = 16000; // gpt-3.5-turbo approx input context
 
 export function NewsDock() {
 	const {
@@ -182,7 +182,8 @@ export function NewsDock() {
 		setActiveId(null);
 	};
 
-	// Fetch article details for items in queue
+	// Fetch article details for items in queue (DISABLED to prevent per-item fetch spam)
+	/*
 	useEffect(() => {
 		const fetchArticleDetails = async () => {
 			const details: Record<string, any> = {};
@@ -190,35 +191,21 @@ export function NewsDock() {
 			for (const item of queue) {
 				if (!articleDetails[item.id]) {
 					try {
-						// Check if there's cached data available from window.newsDetailsCache
 						if (
 							typeof window !== 'undefined' &&
 							window.newsDetailsCache &&
 							window.newsDetailsCache[item.id]
 						) {
-							console.log(
-								`Using cached article details for ${item.id}`
-							);
+							console.log(`Using cached article details for ${item.id}`);
 							details[item.id] = window.newsDetailsCache[item.id];
 						} else {
-							// No cached data, fetch from API
-							console.log(
-								`Fetching article details for ${item.id}`
-							);
-
-							// Try to fetch from the news API
-							const response = await fetch(
-								`/api/pharos/posts/${item.id}`
-							);
-
+							console.log(`Fetching article details for ${item.id}`);
+							const response = await fetch(`/api/pharos/posts/${item.id}`);
 							if (response.ok) {
 								const data = await response.json();
 								details[item.id] = data;
 							} else {
-								console.error(
-									`Failed to fetch details for article ${item.id}`
-								);
-								// Set basic details from the item itself
+								console.error(`Failed to fetch details for article ${item.id}`);
 								details[item.id] = {
 									id: item.id,
 									title: item.title,
@@ -231,18 +218,11 @@ export function NewsDock() {
 							}
 						}
 
-						// Initialize tabs if not set
 						if (!activeTab[item.id]) {
-							setActiveTab((prev) => ({
-								...prev,
-								[item.id]: 'summary',
-							}));
+							setActiveTab((prev) => ({ ...prev, [item.id]: 'summary' }));
 						}
 					} catch (error) {
-						console.error(
-							`Error fetching details for article ${item.id}:`,
-							error
-						);
+						console.error(`Error fetching details for article ${item.id}:`, error);
 					}
 				}
 			}
@@ -254,14 +234,15 @@ export function NewsDock() {
 
 		fetchArticleDetails();
 	}, [queue, articleDetails, activeTab]);
+	*/
 
 	// Function to estimate tokens in text
 	const estimateTokens = (text: string): number => {
 		// Rough estimate: 1 token ≈ 4 characters
-		return Math.ceil(text.length / 4);
+		return Math.ceil((text || '').length / 4);
 	};
 
-	// Function to calculate total tokens for investigative report
+	// Function to calculate total tokens for briefing/report input based on dock items
 	const calculateReportTokens = async () => {
 		if (queue.length === 0) {
 			setTokenCount(0);
@@ -273,21 +254,20 @@ export function NewsDock() {
 
 			for (const item of queue) {
 				const details = articleDetails[item.id];
-				if (!details) continue;
+				// Prefer fetched details if present, otherwise fall back to dock data
+				const title = details?.title || item.title || '';
+				const summary =
+					details?.summary || item.summary || item.excerpt || '';
+				const fullText = details?.fullText || details?.content || '';
 
 				// Count tokens in title
-				if (details.title) {
-					totalTokens += estimateTokens(details.title);
-				}
+				if (title) totalTokens += estimateTokens(title);
 
-				// Count tokens in summary/excerpt
-				if (details.summary) {
-					totalTokens += estimateTokens(details.summary);
-				}
-
-				// Count tokens in full text if available
-				if (details.fullText) {
-					totalTokens += estimateTokens(details.fullText);
+				// If full text exists, count it; otherwise count summary/excerpt
+				if (fullText) {
+					totalTokens += estimateTokens(fullText);
+				} else if (summary) {
+					totalTokens += estimateTokens(summary);
 				}
 			}
 
@@ -299,9 +279,26 @@ export function NewsDock() {
 	};
 
 	// Update token count when queue changes
+	const tokenKey = useMemo(
+		() =>
+			queue
+				.map(
+					(i) =>
+						`${i.id}:${(i.summary || i.excerpt || '').length}:${
+							(i.title || '').length
+						}`
+				)
+				.join('|'),
+		[queue]
+	);
+
 	useEffect(() => {
 		calculateReportTokens();
-	}, [queue, articleDetails]);
+	}, [tokenKey, articleDetails]);
+
+	useEffect(() => {
+		calculateReportTokens();
+	}, [queue.length]);
 
 	// Function to generate podcast
 	const generatePodcast = async () => {
@@ -806,110 +803,138 @@ export function NewsDock() {
 		}
 	};
 
-	// Function to generate news briefing using MCP
+	// Function to generate news briefing using server API (send only IDs)
 	const generateNewsBriefing = async () => {
 		if (queue.length === 0) return;
 
 		setReportStatus('generating');
-		setReportProgress('Connecting to text analysis service...');
+		setReportProgress('Requesting server to build briefing...');
 		setReportUrl(null);
 
-		const textAnalysisClient = new TextAnalysisMCPClient();
-
 		try {
-			// Connect to the MCP client
-			await textAnalysisClient.connect();
-			setReportProgress('Converting articles for analysis...');
-
-			// Convert queue items to NewsArticlePreview format
-			const articles = queue.map((item) => {
-				const details = articleDetails[item.id];
-				return {
-					id: item.id,
-					title: item.title,
-					link: item.url,
-					excerpt: details?.summary || item.excerpt || '',
-					source: {
-						site:
-							item.source?.site || item.source?.name || 'Unknown',
-						domain:
-							item.source?.domain || new URL(item.url).hostname,
+			const ids = queue.map((item) => item.id);
+			const response = await fetch('/api/pharos/briefing', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					ids,
+					options: {
+						briefingType: 'summary',
+						targetAudience: 'general',
+						maxSections: 8,
 					},
-					publishDate: item.publishedAt,
-				};
+				}),
 			});
 
-			setReportProgress('Generating news briefing with AI...');
+			if (!response.ok) {
+				const errTxt = await response.text();
+				throw new Error(`Briefing request failed: ${errTxt}`);
+			}
 
-			// Call the news briefing tool
-			const briefing = await textAnalysisClient.createNewsBriefing(
-				articles,
-				{
-					briefingType: 'summary',
-					targetAudience: 'general',
-					maxSections: 8,
-				}
-			);
-
-			console.log('Generated briefing:', briefing);
-
-			// Store and display the briefing
+			const json = await response.json();
+			const briefing = json.data || json.briefing || json;
 			setCurrentBriefing(briefing);
-			setExpandedSources(new Set()); // Reset expanded sources for new briefing
+			setExpandedSources(new Set());
 			setReportProgress('News briefing generated successfully!');
 			setReportStatus('ready');
 			setShowBriefing(true);
 
-			// TODO: Replace simple array with proper data structure (indexed by date, searchable, with metadata, etc.)
-			// Save briefing to localStorage array for history
+			// Persist briefing (history)
 			try {
 				const existingBriefings = JSON.parse(
 					localStorage.getItem('savedNewsBriefings') || '[]'
 				);
 				const briefingWithId = {
 					...briefing,
-					id: Date.now().toString(), // Simple ID for now
+					id: Date.now().toString(),
 					savedAt: new Date().toISOString(),
 				};
-				existingBriefings.push(briefingWithId);
-
-				// Keep only the most recent 50 briefings to prevent localStorage bloat
-				const trimmedBriefings = existingBriefings.slice(-50);
-
+				const trimmed = [...existingBriefings, briefingWithId].slice(
+					-50
+				);
 				localStorage.setItem(
 					'savedNewsBriefings',
-					JSON.stringify(trimmedBriefings)
+					JSON.stringify(trimmed)
 				);
-				console.log(
-					`Saved briefing to localStorage. Total saved: ${trimmedBriefings.length}`
+				localStorage.setItem(
+					'lastNewsBriefing',
+					JSON.stringify(briefing)
 				);
-			} catch (storageError) {
-				console.error(
-					'Error saving briefing to localStorage:',
-					storageError
-				);
+			} catch (e) {
+				console.error('Error saving briefing locally:', e);
 			}
-
-			// Keep the legacy single briefing storage for now (can be removed later)
-			localStorage.setItem('lastNewsBriefing', JSON.stringify(briefing));
 		} catch (error) {
-			console.error('Error generating news briefing:', error);
+			console.error(
+				'Error generating news briefing (server API):',
+				error
+			);
 			setReportStatus('error');
 			setReportProgress(
-				error instanceof Error
-					? error.message
-					: 'Unknown error occurred'
+				error instanceof Error ? error.message : 'Unknown error'
 			);
-		} finally {
-			// Always disconnect the client
-			try {
-				await textAnalysisClient.disconnect();
-			} catch (disconnectError) {
-				console.error(
-					'Error disconnecting text analysis client:',
-					disconnectError
-				);
+		}
+	};
+
+	// New: Generate briefing from precomputed summaries, only dock articles affected
+	const generateNewsBriefingFromSummaries = async () => {
+		if (queue.length === 0) return;
+
+		setReportStatus('generating');
+		setReportProgress('Building briefing from summaries...');
+		setReportUrl(null);
+
+		try {
+			const ids = queue.map((item) => item.id);
+			const response = await fetch('/api/pharos/briefing/summaries', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					ids,
+					options: {
+						briefingType: 'summary',
+						targetAudience: 'general',
+						includeAllSections: true,
+						maxSections: 8,
+					},
+				}),
+			});
+
+			if (!response.ok) {
+				const errTxt = await response.text();
+				throw new Error(`Briefing-from-summaries failed: ${errTxt}`);
 			}
+
+			const json = await response.json();
+			const briefing = json.data || json.briefing || json;
+
+			// Persist briefing (history) so it appears in Local News Briefings
+			try {
+				const existingBriefings = JSON.parse(
+					localStorage.getItem('savedNewsBriefings') || '[]'
+				);
+				const briefingWithId = {
+					...briefing,
+					id: Date.now().toString(),
+					savedAt: new Date().toISOString(),
+				};
+				const trimmed = [...existingBriefings, briefingWithId].slice(-50);
+				localStorage.setItem(
+					'savedNewsBriefings',
+					JSON.stringify(trimmed)
+				);
+			} catch (e) {
+				console.error('Error saving summaries-briefing locally:', e);
+			}
+
+			// Navigate to briefing page view with side-by-side layout
+			localStorage.setItem('lastNewsBriefing', JSON.stringify(briefing));
+			window.location.href = '/pharos/briefings/view';
+		} catch (error) {
+			console.error('Error generating briefing from summaries:', error);
+			setReportStatus('error');
+			setReportProgress(
+				error instanceof Error ? error.message : 'Unknown error'
+			);
 		}
 	};
 
@@ -1278,6 +1303,37 @@ export function NewsDock() {
 												/>
 												<span>News Briefing</span>
 											</button>
+											<button
+												onClick={
+													generateNewsBriefingFromSummaries
+												}
+												disabled={
+													(reportStatus as string) ===
+														'generating' ||
+													(podcastStatus as string) ===
+														'generating' ||
+													queue.length === 0
+												}
+												className='px-4 py-2 bg-indigo-600 text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
+												title='Generate briefing using saved summaries'
+											>
+												<FileSearch
+													size={14}
+													className='mr-1'
+												/>
+												<span>
+													Briefing (Summaries)
+												</span>
+											</button>
+											<div className='px-3 py-1 bg-muted rounded text-xs text-muted-foreground flex items-center gap-1'>
+												<span>Tokens:</span>
+												<span className='font-semibold'>
+													~
+													{tokenCount.toLocaleString()}{' '}
+													/{' '}
+													{MAX_INPUT_TOKENS.toLocaleString()}
+												</span>
+											</div>
 											<button className='px-4 py-2 bg-accent text-accent-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2'>
 												<MessageSquare
 													size={14}
@@ -1301,14 +1357,6 @@ export function NewsDock() {
 														{playlist.length})
 													</span>
 												</button>
-											)}
-											{tokenCount > 0 && (
-												<div className='px-3 py-1 bg-muted rounded text-xs text-muted-foreground flex items-center gap-1'>
-													<span>Tokens:</span>
-													<span className='font-semibold'>
-														{tokenCount.toLocaleString()}
-													</span>
-												</div>
 											)}
 										</>
 									)}

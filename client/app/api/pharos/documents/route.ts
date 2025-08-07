@@ -52,14 +52,14 @@ export async function GET(request: Request) {
 		// Transform posts to match expected format for compatibility
 		const documents = posts.map((post) => ({
 			id: post.id,
-			title: post.articleText?.split('\n')[0] || 'Untitled',
+			title: post.title || post.articleText?.split('\n')[0] || 'Untitled',
 			url: post.webUrl,
 			summary: post.articleText?.substring(0, 200) + '...' || '',
 			fullText: post.articleText,
 			publishedAt: null, // Post model doesn't have this field
 			source: {
 				name: post.bylineWritersLocation || 'Unknown',
-				id: post.bylineWritersLocation || 'unknown',
+				id: post.sourceId || post.bylineWritersLocation || 'unknown',
 			},
 			media: post.featuredImage ? [{ url: post.featuredImage }] : [],
 			// For backward compatibility with existing UI

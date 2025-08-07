@@ -304,40 +304,53 @@ export class StartHomepageFirecrawlJob extends MCPTool {
 			try {
 				console.log(`Attempting database upsert for: ${webUrl}`);
 
+				// Look up the NewsSource record for this domain
+				const hostname = new URL(sourceUrl).hostname;
+				const newsSource = await this.findNewsSourceByDomain(hostname);
+				const sourceId = newsSource?.id || null;
+
 				// Create data object first to ensure it's properly formatted
 				const createData = {
 					webUrl,
+					title: title || null, // Store the article title
+					sourceId: sourceId, // Link to NewsSource if found
 					bylineWriter: source.author || 'Unknown',
 					bylineWritersTitle: source.section || 'Reporter',
 					bylineWritersLocation: source.domain || hostname,
-					articleText: '', // Empty string so the extract article job will process it later
+					articleText: '', // Empty placeholder so later extraction jobs know content not yet fetched
 					featuredImage: image || null,
 					// Not handling media items yet as requested
 				};
-
-				// Add extra metadata as a comment field if available
-				if (title) {
-					// @ts-ignore - Adding metadata to track article title
-					createData.title = title;
-				}
 
 				console.log(
 					`Create data:`,
 					JSON.stringify(createData, null, 2)
 				);
 
-				// The update data is similar but doesn't need to include articleText
-				const updateData = {
+				// The update data is similar but avoids overwriting an existing title
+				const updateData: any = {
+					sourceId: sourceId, // Link to NewsSource if found
 					bylineWriter: source.author || 'Unknown',
 					bylineWritersTitle: source.section || 'Reporter',
 					bylineWritersLocation: source.domain || hostname,
 					featuredImage: image || null,
 				};
 
-				console.log(
-					`Update data:`,
-					JSON.stringify(updateData, null, 2)
-				);
+				try {
+					const existing = await this.prisma.post.findUnique({
+						where: { webUrl },
+						select: { title: true },
+					});
+					if (
+						!existing ||
+						!existing.title ||
+						existing.title.trim() === ''
+					) {
+						updateData.title = title || null;
+					}
+				} catch (e) {
+					// Suppress lookup errors; skip setting title to avoid overwrite
+				}
 
 				// Upsert a Post record (create if it doesn't exist, update if it does)
 				const result = await this.prisma.post.upsert({
@@ -633,6 +646,41 @@ export class StartHomepageFirecrawlJob extends MCPTool {
 			}
 		} catch (error) {
 			console.error('Error handling webhook event:', error);
+		}
+	}
+
+	/**
+	 * Find a NewsSource record by domain
+	 * @param domain - The domain to search for (e.g., "cnn.com")
+	 * @returns NewsSource record if found, null otherwise
+	 */
+	private async findNewsSourceByDomain(domain: string) {
+		try {
+			// Try to find NewsSource by URL containing the domain
+			const newsSource = await this.prisma.newsSource.findFirst({
+				where: {
+					OR: [
+						{ url: { contains: domain, mode: 'insensitive' } },
+						{ name: { contains: domain, mode: 'insensitive' } },
+					],
+				},
+			});
+
+			if (newsSource) {
+				console.log(
+					`Found NewsSource for domain ${domain}: ${newsSource.name}`
+				);
+			} else {
+				console.log(`No NewsSource found for domain: ${domain}`);
+			}
+
+			return newsSource;
+		} catch (error) {
+			console.error(
+				`Error finding NewsSource for domain ${domain}:`,
+				error
+			);
+			return null;
 		}
 	}
 }

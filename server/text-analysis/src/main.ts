@@ -22,6 +22,8 @@ class TextAnalysis {
 		@inject(TYPES.BatchArticleExtractor)
 		private readonly batchArticleExtractor: IMCPTool,
 		@inject(TYPES.NewsBriefing) private readonly newsBriefing: IMCPTool,
+		@inject(TYPES.ArticleSummarizer) private readonly articleSummarizer: IMCPTool, // Added
+		@inject(TYPES.NewsBriefingFromSummaries) private readonly newsBriefingFromSummaries: IMCPTool, // Added
 		@inject(MCPHttpServer) private readonly server: MCPHttpServer,
 		@inject(TYPES.Config) private readonly config: Config
 	) {
@@ -35,6 +37,8 @@ class TextAnalysis {
 			this.currentEventsDetector,
 			this.batchArticleExtractor,
 			this.newsBriefing,
+			this.articleSummarizer, // Added
+			this.newsBriefingFromSummaries, // Added
 		];
 	}
 

@@ -531,6 +531,12 @@ export class StartArticleHtmlScraperJob extends MCPTool {
 				`Updating post ${postId} with extracted content from ${sourceUrl}`
 			);
 
+			// Fetch existing title to avoid overwriting a previously set one
+			const existing = await this.prisma.post.findUnique({
+				where: { id: postId },
+				select: { title: true },
+			});
+
 			const updateData: any = {};
 
 			// Update article content
@@ -538,9 +544,31 @@ export class StartArticleHtmlScraperJob extends MCPTool {
 				updateData.articleText = extractedData.content;
 			}
 
-			// Update author if available and not already set
+			// Only set title if we extracted one AND existing title is empty/null
+			if (
+				extractedData.title &&
+				(!existing?.title || existing.title.trim() === '')
+			) {
+				updateData.title = extractedData.title;
+			}
+
+			// Update author if available (do not clobber existing if already set)
 			if (extractedData.author) {
 				updateData.bylineWriter = extractedData.author;
+			}
+
+			// Look up and set sourceId if we can find the NewsSource
+			try {
+				const hostname = new URL(sourceUrl).hostname;
+				const newsSource = await this.findNewsSourceByDomain(hostname);
+				if (newsSource) {
+					updateData.sourceId = newsSource.id;
+				}
+			} catch (error) {
+				console.warn(
+					`Could not parse URL or find NewsSource for ${sourceUrl}:`,
+					error
+				);
 			}
 
 			// Only update if we have something to update
@@ -554,7 +582,7 @@ export class StartArticleHtmlScraperJob extends MCPTool {
 
 				console.log(`✅ Updated post ${postId} with extracted content`);
 			} else {
-				console.warn(`No content extracted for post ${postId}`);
+				console.warn(`No new content to update for post ${postId}`);
 			}
 		} catch (error) {
 			console.error(`Error updating post ${postId}:`, error);
@@ -567,5 +595,40 @@ export class StartArticleHtmlScraperJob extends MCPTool {
 	 */
 	private delay(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Find a NewsSource record by domain
+	 * @param domain - The domain to search for (e.g., "cnn.com")
+	 * @returns NewsSource record if found, null otherwise
+	 */
+	private async findNewsSourceByDomain(domain: string) {
+		try {
+			// Try to find NewsSource by URL containing the domain
+			const newsSource = await this.prisma.newsSource.findFirst({
+				where: {
+					OR: [
+						{ url: { contains: domain, mode: 'insensitive' } },
+						{ name: { contains: domain, mode: 'insensitive' } },
+					],
+				},
+			});
+
+			if (newsSource) {
+				console.log(
+					`Found NewsSource for domain ${domain}: ${newsSource.name}`
+				);
+			} else {
+				console.log(`No NewsSource found for domain: ${domain}`);
+			}
+
+			return newsSource;
+		} catch (error) {
+			console.error(
+				`Error finding NewsSource for domain ${domain}:`,
+				error
+			);
+			return null;
+		}
 	}
 }

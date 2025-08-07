@@ -46,6 +46,51 @@ export const columns: ColumnDef<Post>[] = [
 		},
 	},
 	{
+		accessorKey: 'title',
+		header: 'Title',
+		size: 300, // Width for title
+		cell: ({ row }) => {
+			const title = row.getValue('title') as string;
+			const fallbackTitle =
+				stripHtmlAndClean(row.original.articleText)?.split('\n')[0] ||
+				'Untitled Article';
+			const displayTitle = title || fallbackTitle;
+
+			return (
+				<div>
+					<span
+						className='text-sm font-medium text-gray-900 block truncate'
+						title={displayTitle}
+					>
+						{truncateText(displayTitle, 50)}
+					</span>
+				</div>
+			);
+		},
+	},
+	{
+		accessorKey: 'sourceId',
+		header: 'Source ID',
+		size: 150, // Width for source ID
+		cell: ({ row }) => {
+			const sourceId = row.getValue('sourceId') as string;
+			const fallbackSource =
+				row.original.bylineWritersLocation || 'Unknown';
+			const displaySource = sourceId || fallbackSource;
+
+			return (
+				<div>
+					<span
+						className='text-sm text-gray-600 block truncate'
+						title={displaySource}
+					>
+						{truncateText(displaySource, 20)}
+					</span>
+				</div>
+			);
+		},
+	},
+	{
 		accessorKey: 'webUrl',
 		header: 'URL',
 		size: 250, // Increased width for URL
@@ -69,11 +114,11 @@ export const columns: ColumnDef<Post>[] = [
 	{
 		accessorKey: 'articleText',
 		header: 'Text',
-		size: 400, // Larger width for text content
+		size: 300, // Reduced width since we now have title column
 		cell: ({ row }) => {
 			const rawText = row.getValue('articleText') as string;
 			const cleanText = stripHtmlAndClean(rawText);
-			const truncatedText = truncateText(cleanText, 100); // More characters for readability
+			const truncatedText = truncateText(cleanText, 80); // Reduced characters
 
 			return (
 				<div>
