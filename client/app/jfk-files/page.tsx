@@ -73,6 +73,7 @@ import { JFKDocument, ProcessingUpdate } from '../../utils/jfk/types';
 
 // Import the document group context
 import { useDocumentGroups } from '../../lib/context/DocumentGroupContext';
+import GlobalDocumentGroupFilter from '@/components/layout/GlobalDocumentGroupFilter';
 
 export default function JFKFilesPage() {
 	// Use our custom hooks
@@ -459,6 +460,7 @@ export default function JFKFilesPage() {
 					gap: '1rem',
 				}}
 			>
+				<GlobalDocumentGroupFilter />
 				<Button
 					variant='contained'
 					color='primary'
@@ -1019,14 +1021,58 @@ export default function JFKFilesPage() {
 													maxHeight: '150px',
 													overflowY: 'auto',
 													maxWidth: '300px',
-													overflowX: 'hidden',
-													textOverflow: 'ellipsis',
+													display: 'flex',
+													flexWrap: 'wrap',
+													gap: '4px',
 												}}
 											>
-												{doc.allNames.join(', ')}
+												{doc.allNames
+													.slice(0, 10)
+													.map((name, index) => (
+														<Chip
+															key={index}
+															label={name}
+															size='small'
+															variant='outlined'
+															style={{
+																fontSize:
+																	'0.7rem',
+																height: '24px',
+																backgroundColor:
+																	'#f0f9ff',
+																borderColor:
+																	'#0ea5e9',
+																color: '#0c4a6e',
+															}}
+														/>
+													))}
+												{doc.allNames.length > 10 && (
+													<Chip
+														label={`+${
+															doc.allNames
+																.length - 10
+														} more`}
+														size='small'
+														variant='filled'
+														style={{
+															fontSize: '0.7rem',
+															height: '24px',
+															backgroundColor:
+																'#64748b',
+															color: 'white',
+														}}
+													/>
+												)}
 											</div>
 										) : (
-											'None'
+											<span
+												style={{
+													color: '#9ca3af',
+													fontStyle: 'italic',
+												}}
+											>
+												None
+											</span>
 										)}
 									</TableCell>
 									<TableCell>
@@ -1037,14 +1083,58 @@ export default function JFKFilesPage() {
 													maxHeight: '150px',
 													overflowY: 'auto',
 													maxWidth: '300px',
-													overflowX: 'hidden',
-													textOverflow: 'ellipsis',
+													display: 'flex',
+													flexWrap: 'wrap',
+													gap: '4px',
 												}}
 											>
-												{doc.allPlaces.join(', ')}
+												{doc.allPlaces
+													.slice(0, 10)
+													.map((place, index) => (
+														<Chip
+															key={index}
+															label={place}
+															size='small'
+															variant='outlined'
+															style={{
+																fontSize:
+																	'0.7rem',
+																height: '24px',
+																backgroundColor:
+																	'#f0fdf4',
+																borderColor:
+																	'#22c55e',
+																color: '#15803d',
+															}}
+														/>
+													))}
+												{doc.allPlaces.length > 10 && (
+													<Chip
+														label={`+${
+															doc.allPlaces
+																.length - 10
+														} more`}
+														size='small'
+														variant='filled'
+														style={{
+															fontSize: '0.7rem',
+															height: '24px',
+															backgroundColor:
+																'#64748b',
+															color: 'white',
+														}}
+													/>
+												)}
 											</div>
 										) : (
-											'None'
+											<span
+												style={{
+													color: '#9ca3af',
+													fontStyle: 'italic',
+												}}
+											>
+												None
+											</span>
 										)}
 									</TableCell>
 									<TableCell>
@@ -1055,14 +1145,58 @@ export default function JFKFilesPage() {
 													maxHeight: '150px',
 													overflowY: 'auto',
 													maxWidth: '300px',
-													overflowX: 'hidden',
-													textOverflow: 'ellipsis',
+													display: 'flex',
+													flexWrap: 'wrap',
+													gap: '4px',
 												}}
 											>
-												{doc.allDates.join(', ')}
+												{doc.allDates
+													.slice(0, 8)
+													.map((date, index) => (
+														<Chip
+															key={index}
+															label={date}
+															size='small'
+															variant='outlined'
+															style={{
+																fontSize:
+																	'0.7rem',
+																height: '24px',
+																backgroundColor:
+																	'#fef3c7',
+																borderColor:
+																	'#f59e0b',
+																color: '#92400e',
+															}}
+														/>
+													))}
+												{doc.allDates.length > 8 && (
+													<Chip
+														label={`+${
+															doc.allDates
+																.length - 8
+														} more`}
+														size='small'
+														variant='filled'
+														style={{
+															fontSize: '0.7rem',
+															height: '24px',
+															backgroundColor:
+																'#64748b',
+															color: 'white',
+														}}
+													/>
+												)}
 											</div>
 										) : (
-											'None'
+											<span
+												style={{
+													color: '#9ca3af',
+													fontStyle: 'italic',
+												}}
+											>
+												None
+											</span>
 										)}
 									</TableCell>
 									<TableCell>
@@ -1073,14 +1207,58 @@ export default function JFKFilesPage() {
 													maxHeight: '150px',
 													overflowY: 'auto',
 													maxWidth: '300px',
-													overflowX: 'hidden',
-													textOverflow: 'ellipsis',
+													display: 'flex',
+													flexWrap: 'wrap',
+													gap: '4px',
 												}}
 											>
-												{doc.allObjects.join(', ')}
+												{doc.allObjects
+													.slice(0, 8)
+													.map((object, index) => (
+														<Chip
+															key={index}
+															label={object}
+															size='small'
+															variant='outlined'
+															style={{
+																fontSize:
+																	'0.7rem',
+																height: '24px',
+																backgroundColor:
+																	'#fdf2f8',
+																borderColor:
+																	'#ec4899',
+																color: '#be185d',
+															}}
+														/>
+													))}
+												{doc.allObjects.length > 8 && (
+													<Chip
+														label={`+${
+															doc.allObjects
+																.length - 8
+														} more`}
+														size='small'
+														variant='filled'
+														style={{
+															fontSize: '0.7rem',
+															height: '24px',
+															backgroundColor:
+																'#64748b',
+															color: 'white',
+														}}
+													/>
+												)}
 											</div>
 										) : (
-											'None'
+											<span
+												style={{
+													color: '#9ca3af',
+													fontStyle: 'italic',
+												}}
+											>
+												None
+											</span>
 										)}
 									</TableCell>
 									<TableCell>

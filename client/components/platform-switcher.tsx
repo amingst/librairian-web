@@ -16,7 +16,7 @@ import {
 
 const platformRoutes = {
 	librarian: '/jfk-files',
-	pharos: '/news',
+	pharos: '/pharos',
 };
 
 const platformSubtitles = {
@@ -35,7 +35,7 @@ export function PlatformSwitcher({ platforms }: { platforms: string[] }) {
 
 	// Determine current platform based on route
 	const getCurrentPlatform = () => {
-		if (pathname.startsWith('/news')) {
+		if (pathname.startsWith('/pharos')) {
 			return 'pharos';
 		}
 		return 'librarian';

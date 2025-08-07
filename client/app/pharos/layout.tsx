@@ -2,7 +2,6 @@ import { Inter } from 'next/font/google';
 import { NewsDockProvider } from '../../lib/context/NewsDockContext';
 import { NewsSourcesProvider } from '@/lib/context/NewsSourceContext';
 import { NewsDock } from '@/components/ui/NewsDock';
-import PharosSidebar from '@/components/layout/PharosSidebar';
 
 const inter = Inter({ subsets: ['latin'] });
 
