@@ -7,6 +7,14 @@ export type {
 	StructuredArticle,
 } from './article.js';
 
+// Model types
+export type {
+	AIModel,
+	ModelResponse,
+	ModelProvider,
+	CostTier,
+} from './models.js';
+
 // News types
 export type {
 	NewsMediaContent,

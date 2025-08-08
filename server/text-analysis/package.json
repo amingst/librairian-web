@@ -33,6 +33,7 @@
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.59.0",
 		"@modelcontextprotocol/sdk": "^1.17.0",
 		"@shared/backend": "file:../../shared/backend",
 		"@shared/types": "file:../../shared/types",

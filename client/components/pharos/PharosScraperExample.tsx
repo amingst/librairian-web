@@ -7,7 +7,7 @@ import {
 } from '../../hooks/pharos/use-mcp-client';
 import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 import type { Document, Post } from '@prisma/client';
-import type { NewsArticlePreview } from '@shared/types';
+import type { NewsArticlePreview, AIModel } from '@shared/types';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { ScrollArea } from '../ui/scroll-area';
 import {
@@ -17,6 +17,7 @@ import {
 	CheckIcon,
 } from 'lucide-react';
 import { useNewsDock } from '@/lib/context/NewsDockContext';
+import { ModelSelector } from '@/components/ui/ModelSelector';
 
 // Component for displaying source icon with fallback
 const SourceIcon = ({
@@ -183,7 +184,29 @@ export default function NewsScraperExample() {
 	const [scraping, setScraping] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [summarizing, setSummarizing] = useState(false); // Added
+	const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
 	const [textAnalysisClient] = useState(() => new TextAnalysisMCPClient());
+	
+	// Set default model on component mount
+	useEffect(() => {
+		if (!selectedModel) {
+			// Set a default model
+			setSelectedModel({
+				id: 'gpt-4o-mini',
+				name: 'GPT-4o Mini',
+				description: 'Fast and cost-effective',
+				provider: 'OpenAI',
+				costTier: 'low',
+				maxTokens: 1500,
+				temperature: 0.3,
+				capabilities: {
+					textGeneration: true,
+					codeGeneration: true,
+					reasoning: true,
+				},
+			});
+		}
+	}, [selectedModel]);
 	// Tool selection states
 	const [homepageTool, setHomepageTool] = useState<'firecrawl' | 'html'>(
 		'html'
@@ -496,60 +519,157 @@ export default function NewsScraperExample() {
 	};
 
 	const handleSummarizeDockArticles = async () => {
+		console.log('🚀 handleSummarizeDockArticles called!', {
+			queueLength: queue.length,
+		});
+
 		if (queue.length === 0) {
 			alert('No items in dock to summarize');
 			return;
 		}
 		setSummarizing(true);
 		try {
+			console.log('🔌 Checking text analysis client connection...');
 			if (!textAnalysisClient['connected']) {
+				console.log('📡 Connecting to text analysis client...');
 				await textAnalysisClient.connect();
+				console.log('✅ Connected to text analysis client');
+			} else {
+				console.log('✅ Text analysis client already connected');
 			}
+
+			console.log(
+				'🔍 Queue items to process:',
+				queue.map((item) => ({
+					id: item.id,
+					title: item.title,
+					hasContent: !!(item.summary || item.excerpt || '').trim(),
+					contentLength: (item.summary || item.excerpt || '').trim()
+						.length,
+					summary: item.summary,
+					excerpt: item.excerpt,
+				}))
+			);
 
 			let updated = 0;
 			for (const item of queue) {
 				const content = (item.summary || item.excerpt || '').trim();
-				if (!item.id || !content) continue;
+				console.log(`🔍 Processing item ${item.id}:`, {
+					hasId: !!item.id,
+					hasContent: !!content,
+					contentLength: content.length,
+					title: item.title,
+				});
 
-				// Summarize single article
-				const result = await (textAnalysisClient as any).summarizeArticlesBatch(
-					[
-						{
-							title: item.title || 'Untitled',
-							content: content.slice(0, 8000),
-							source: item.source?.name,
-							date: item.publishedAt,
-						},
-					],
-					'general',
-					'brief'
-				);
+				if (!item.id || !content) {
+					console.log(
+						`⚠️ Skipping item ${item.id}: missing ${
+							!item.id ? 'id' : 'content'
+						}`
+					);
+					continue;
+				}
 
-				const summaryText =
-					(typeof result === 'object' && result?.summary)
-						? String(result.summary)
-						: typeof result === 'string'
-						? result
-						: JSON.stringify(result);
-
-				if (summaryText && summaryText.length > 0) {
-					const resp = await fetch(`/api/pharos/posts/${item.id}`, {
-						method: 'PUT',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ summary: summaryText }),
+				try {
+					// Summarize single article
+					console.log('📝 Calling summarizeArticlesBatch with:', {
+						title: item.title || 'Untitled',
+						contentLength: content.slice(0, 8000).length,
+						source: item.source?.name,
+						date: item.publishedAt,
+						selectedModel: selectedModel?.id || 'gpt-4o-mini'
 					});
-					if (resp.ok) {
-						updated += 1;
-					} else {
-						console.warn('Failed to update post', item.id, await resp.text());
+
+					console.log('🔧 textAnalysisClient connected:', textAnalysisClient.connected);
+					console.log('🔧 About to call textAnalysisClient.summarizeArticlesBatch...');
+					
+					// Ensure connection before calling
+					if (!textAnalysisClient.connected) {
+						console.log('🔄 Client not connected, attempting to connect...');
+						await textAnalysisClient.connect();
+						console.log('✅ Client connected successfully');
 					}
+
+					const result = await (
+						textAnalysisClient as any
+					).summarizeArticlesBatch(
+						[
+							{
+								title: item.title || 'Untitled',
+								content: content.slice(0, 8000),
+								source: item.source?.name,
+								date: item.publishedAt,
+							},
+						],
+						'general',
+						'brief',
+						selectedModel?.id || 'gpt-4o-mini' // Use selected model or default
+					);
+					console.log('🎯 textAnalysisClient.summarizeArticlesBatch completed with result:', result);
+
+					console.log('📋 Summarization result:', result);
+
+					const summaryText =
+						typeof result === 'object' && result?.summary
+							? String(result.summary)
+							: typeof result === 'string'
+							? result
+							: JSON.stringify(result);
+
+					console.log('📄 Processed summary text:', {
+						summaryText,
+						length: summaryText?.length,
+						type: typeof summaryText,
+					});
+
+					if (summaryText && summaryText.length > 0) {
+						console.log(`💾 Updating post ${item.id} with summary...`);
+						const resp = await fetch(`/api/pharos/posts/${item.id}`, {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ summary: summaryText }),
+						});
+						if (resp.ok) {
+							updated += 1;
+							console.log(`✅ Successfully updated post ${item.id}`);
+						} else {
+							const errorText = await resp.text();
+							console.warn(
+								'❌ Failed to update post',
+								item.id,
+								errorText
+							);
+						}
+					} else {
+						console.warn(
+							'⚠️ No valid summary text generated for item',
+							item.id
+						);
+					}
+				} catch (articleError) {
+					console.error('❌ Error processing article:', {
+						articleId: item.id,
+						title: item.title,
+						error: articleError instanceof Error ? articleError.message : String(articleError),
+						stack: articleError instanceof Error ? articleError.stack : undefined
+					});
+					// Continue with next article instead of failing the whole batch
 				}
 			}
 
-			alert(`Summarized and saved ${updated} article(s) to the database.`);
+			console.log(
+				`🎯 Final result: ${updated} articles were successfully updated`
+			);
+			alert(
+				`Summarized and saved ${updated} article(s) to the database.`
+			);
 		} catch (e) {
 			console.error('Failed batch summarize & save:', e);
-			alert(`Failed to summarize articles: ${e instanceof Error ? e.message : e}`);
+			alert(
+				`Failed to summarize articles: ${
+					e instanceof Error ? e.message : e
+				}`
+			);
 		} finally {
 			setSummarizing(false);
 		}
@@ -763,6 +883,13 @@ export default function NewsScraperExample() {
 						</div>
 					</div>
 
+					{/* AI Model Selection */}
+					<ModelSelector
+						selectedModel={selectedModel?.id}
+						onModelSelect={setSelectedModel}
+						className="mb-4"
+					/>
+
 					<div className='border rounded-lg p-4'>
 						{/* Main Homepage Scraping Button */}
 						<button
@@ -807,11 +934,19 @@ export default function NewsScraperExample() {
 
 						{/* Summarize & Save button */}
 						<button
-							onClick={handleSummarizeDockArticles}
+							onClick={() => {
+								console.log('🔘 Button clicked!', {
+									queue,
+									queueLength: queue.length,
+								});
+								handleSummarizeDockArticles();
+							}}
 							disabled={queue.length === 0 || summarizing}
 							className='w-full px-4 py-2 mt-3 bg-orange-600 dark:bg-orange-700 text-white rounded hover:bg-orange-700 dark:hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed'
 						>
-							{summarizing ? 'Summarizing & Saving...' : 'Summarize Dock Articles and Save to DB'}
+							{summarizing
+								? 'Summarizing & Saving...'
+								: 'Summarize Dock Articles and Save to DB'}
 						</button>
 
 						{summarizing && (
@@ -822,7 +957,9 @@ export default function NewsScraperExample() {
 
 						{selection.count > 2 && (
 							<div className='mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded text-sm text-yellow-800 dark:text-yellow-200'>
-								⚠️ Only the first 2 sources will be scraped to avoid timeouts. Deselect some sources or scrape in multiple batches.
+								⚠️ Only the first 2 sources will be scraped to
+								avoid timeouts. Deselect some sources or scrape
+								in multiple batches.
 							</div>
 						)}
 
@@ -833,7 +970,9 @@ export default function NewsScraperExample() {
 							className='w-full px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
 						>
 							<DatabaseIcon className='w-4 h-4' />
-							{loading ? 'Loading...' : 'Load News Articles from Database'}
+							{loading
+								? 'Loading...'
+								: 'Load News Articles from Database'}
 						</button>
 
 						{loading && (

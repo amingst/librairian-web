@@ -8,9 +8,23 @@ export class TextAnalysisMCPClient {
 	private isConnected = false;
 
 	async connect(): Promise<void> {
-		if (this.isConnected) return;
+		if (this.isConnected && this.client) return;
+
+		console.log('🔌 Connecting to text analysis MCP server...', {
+			currentlyConnected: this.isConnected,
+			clientExists: !!this.client
+		});
 
 		try {
+			// Clean up any existing connection
+			if (this.client) {
+				try {
+					await this.client.close();
+				} catch (e) {
+					console.warn('Error closing existing client:', e);
+				}
+			}
+
 			this.transport = new StreamableHTTPClientTransport(
 				new URL('http://localhost:3002/mcp')
 			);
@@ -27,10 +41,16 @@ export class TextAnalysisMCPClient {
 
 			await this.client.connect(this.transport);
 			this.isConnected = true;
-			console.log('Connected to text analysis MCP server');
+			console.log('✅ Connected to text analysis MCP server', {
+				clientExists: !!this.client,
+				isConnected: this.isConnected
+			});
 		} catch (error) {
+			this.isConnected = false;
+			this.client = null;
+			this.transport = null;
 			console.error(
-				'Failed to connect to text analysis MCP server:',
+				'❌ Failed to connect to text analysis MCP server:',
 				error
 			);
 			throw error;
@@ -188,15 +208,40 @@ export class TextAnalysisMCPClient {
 	async summarizeArticlesBatch(
 		articles: { title: string; content: string; source?: string; date?: string }[],
 		audience: 'general' | 'investor' | 'academic' | 'technical' | 'executive' = 'general',
-		detail: 'brief' | 'standard' | 'comprehensive' = 'brief'
+		detail: 'brief' | 'standard' | 'comprehensive' = 'brief',
+		model?: string
 	): Promise<any> {
+		console.log('🔍 summarizeArticlesBatch called with:', {
+			articlesCount: articles.length,
+			audience,
+			detail,
+			model,
+			clientExists: !!this.client,
+			isConnected: this.isConnected,
+			connectedGetter: this.connected
+		});
+
 		if (!this.client || !this.isConnected) {
+			console.error('❌ Connection check failed:', {
+				clientExists: !!this.client,
+				isConnected: this.isConnected
+			});
 			throw new Error('Client not connected');
 		}
+
+		console.log('✅ Connection check passed, calling tool...');
+		
 		const result = await this.client.callTool({
 			name: 'summarize_articles_batch',
-			arguments: { articles, audience, detail },
+			arguments: { 
+				articles, 
+				audience, 
+				detail,
+				...(model && { model })
+			},
 		});
+		
+		console.log('🎯 Tool call completed, parsing result...');
 		return this.parseToolResult(result);
 	}
 
@@ -231,6 +276,6 @@ export class TextAnalysisMCPClient {
 	}
 
 	get connected(): boolean {
-		return this.isConnected;
+		return this.isConnected && this.client !== null;
 	}
 }

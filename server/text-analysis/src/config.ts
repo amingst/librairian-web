@@ -4,6 +4,8 @@ dotenv.config();
 
 export default {
 	openaiKey: process.env.OPENAI_API_KEY,
+	xaiKey: process.env.XAI_API_KEY,
+	anthropicKey: process.env.ANTHROPIC_API_KEY,
 	port: parseInt(process.env.PORT || '3002'),
 	host: process.env.HOST || 'localhost',
 	nodeEnv: process.env.NODE_ENV || 'development',
