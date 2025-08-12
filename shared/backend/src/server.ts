@@ -8,6 +8,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { inject, injectable } from 'inversify';
 import { PrismaClientFactory } from './PrismaClientFactory.js';
 import { PrismaClient } from '@prisma/client';
+import { registerControllers } from './controller/controller.decorator.js';
 
 export interface MCPServerConfig {
 	serverInfo: MCPImplementation;
@@ -55,7 +56,9 @@ export class MCPHttpServer {
 	private setupExpress(config: ExpressServerConfig) {
 		// Middleware
 		this.expressApp.use(express.json({ limit: '1mb' }));
-		this.expressApp.use(express.urlencoded({ extended: true, limit: '1mb' }));
+		this.expressApp.use(
+			express.urlencoded({ extended: true, limit: '1mb' })
+		);
 
 		// CORS headers
 		this.expressApp.use((req, res, next) => {
@@ -72,6 +75,10 @@ export class MCPHttpServer {
 			}
 			next();
 		});
+
+		// NOTE: Controllers will be registered later via registerControllers() method
+		// after controller classes are instantiated
+
 		// Start server
 		this.httpServer = this.expressApp.listen(
 			config.port,
@@ -197,121 +204,6 @@ export class MCPHttpServer {
 				});
 			}
 		});
-
-		// News sources API routes
-		this.setupNewsSourcesRoutes();
-	}
-
-	private setupNewsSourcesRoutes() {
-		// GET /api/news-sources - Returns list of active news sources with ID and name only
-		this.expressApp.get('/api/news-sources', async (req, res) => {
-			try {
-				// Get active news sources from database
-				const sources = await this.prisma.newsSource.findMany({
-					where: {
-						isActive: true,
-						isDisabled: false,
-					},
-					select: {
-						id: true,
-						name: true,
-						icon: true,
-						createdAt: true,
-						updatedAt: true,
-					},
-					orderBy: {
-						name: 'asc',
-					},
-				});
-
-				res.json({
-					success: true,
-					data: {
-						sources,
-						total: sources.length,
-						timestamp: new Date().toISOString(),
-					},
-				});
-			} catch (error) {
-				console.error('Error loading news sources:', error);
-				res.status(500).json({
-					success: false,
-					error: 'Failed to load news sources',
-					message:
-						error instanceof Error ? error.message : String(error),
-				});
-			}
-		});
-
-		// GET /api/news-sources/:id - Returns full configuration for a specific source
-		this.expressApp.get('/api/news-sources/:id', async (req, res) => {
-			try {
-				const sourceId = req.params.id;
-
-				// Find the source by ID from database
-				const source = await this.prisma.newsSource.findUnique({
-					where: {
-						id: sourceId,
-					},
-				});
-
-				if (!source) {
-					res.status(404).json({
-						success: false,
-						error: 'News source not found',
-						sourceId,
-					});
-					return;
-				}
-
-				// Return full source configuration
-				res.json({
-					success: true,
-					data: {
-						...source,
-						timestamp: new Date().toISOString(),
-					},
-				});
-			} catch (error) {
-				console.error('Error loading news source:', error);
-				res.status(500).json({
-					success: false,
-					error: 'Failed to load news source',
-					message:
-						error instanceof Error ? error.message : String(error),
-				});
-			}
-		});
-
-		// GET /api/news-sources/all - Returns all news sources including disabled ones
-		this.expressApp.get('/api/news-sources/all', async (req, res) => {
-			try {
-				const sources = await this.prisma.newsSource.findMany({
-					orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-				});
-
-				res.json({
-					success: true,
-					data: {
-						sources,
-						total: sources.length,
-						active: sources.filter(
-							(s) => s.isActive && !s.isDisabled
-						).length,
-						disabled: sources.filter((s) => s.isDisabled).length,
-						timestamp: new Date().toISOString(),
-					},
-				});
-			} catch (error) {
-				console.error('Error loading all news sources:', error);
-				res.status(500).json({
-					success: false,
-					error: 'Failed to load all news sources',
-					message:
-						error instanceof Error ? error.message : String(error),
-				});
-			}
-		});
 	}
 
 	// Method to register MCP tools from your existing tool classes
@@ -330,6 +222,29 @@ export class MCPHttpServer {
 				console.warn(`⚠️  Invalid tool provided:`, tool);
 			}
 		}
+	}
+
+	// Method to register controllers dynamically
+	public registerControllers(controllers: any[]) {
+		console.log(
+			`Registering ${controllers.length} controllers with MCP server`
+		);
+
+		for (const ControllerClass of controllers) {
+			try {
+				// Instantiate the controller - this will trigger the decorator registration
+				new ControllerClass();
+				console.log(`✓ Registered controller: ${ControllerClass.name}`);
+			} catch (error) {
+				console.warn(
+					`⚠️  Failed to register controller ${ControllerClass.name}:`,
+					error
+				);
+			}
+		}
+
+		// IMPORTANT: Register all controllers with Express AFTER instantiating them
+		registerControllers(this.expressApp);
 	}
 
 	// Method to stop the server

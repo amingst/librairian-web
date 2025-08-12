@@ -10,6 +10,7 @@ import { StartHomepageFirecrawlJob } from './tools/StartHomepageFirecrawlJob.js'
 import { StartFirecrawlExtractArticleJob } from './tools/StartFirecrawlExtractArticleJob.js';
 import { StartHomepageHtmlScraperJob } from './tools/StartHomepageHtmlScraperJob.js';
 import { StartArticleHtmlScraperJob } from './tools/StartArticleHtmlScraperJob.js';
+import { NewsSourcesController } from './controllers/NewsSourcesController.js';
 
 type Config = typeof config;
 
@@ -42,6 +43,9 @@ class NewsScraper {
 	public async start(): Promise<void> {
 		// Register tools with the server
 		this.server.registerTools(this.tools);
+
+		// Register controllers
+		this.server.registerControllers([NewsSourcesController]);
 
 		// Setup webhook endpoint
 		this.setupWebhookEndpoint();
