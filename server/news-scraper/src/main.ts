@@ -11,6 +11,7 @@ import { StartFirecrawlExtractArticleJob } from './tools/StartFirecrawlExtractAr
 import { StartHomepageHtmlScraperJob } from './tools/StartHomepageHtmlScraperJob.js';
 import { StartArticleHtmlScraperJob } from './tools/StartArticleHtmlScraperJob.js';
 import { NewsSourcesController } from './controllers/NewsSourcesController.js';
+import { ArticleController } from './controllers/ArticleController.js';
 
 type Config = typeof config;
 
@@ -45,7 +46,7 @@ class NewsScraper {
 		this.server.registerTools(this.tools);
 
 		// Register controllers
-		this.server.registerControllers([NewsSourcesController]);
+		this.server.registerControllers([NewsSourcesController, ArticleController]);
 
 		// Setup webhook endpoint
 		this.setupWebhookEndpoint();

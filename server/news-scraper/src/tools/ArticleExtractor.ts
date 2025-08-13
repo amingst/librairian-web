@@ -1,6 +1,6 @@
 import z from 'zod';
 import { HTMLScraperBase } from '../lib/helpers/html.js';
-import { MCPTool } from '@shared/backend';
+import { MCPTool, PrismaClientFactory } from '@shared/backend';
 import {
 	StructuredArticle,
 	ArticleContent,
@@ -10,9 +10,22 @@ import {
 import { MCPToolResponse, ExtractTextParams } from '../types/index.js';
 import * as cheerio from 'cheerio';
 import { injectable } from 'inversify';
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+
+// Progress callback interface
+export interface ExtractionProgressCallback {
+	(stage: string, progress: number, message: string): void;
+}
 
 @injectable()
 export class ArticleExtractorTool extends MCPTool {
+	private prisma: PrismaClient;
+
+	constructor() {
+		super();
+		this.prisma = PrismaClientFactory.getInstance('news-scraper');
+	}
 	private static readonly inputSchema = z.object({
 		url: z
 			.string()
@@ -121,6 +134,216 @@ export class ArticleExtractorTool extends MCPTool {
 					},
 				],
 			};
+		}
+	}
+
+	async executeWithProgress(
+		params: ExtractTextParams,
+		progressCallback?: ExtractionProgressCallback
+	): Promise<StructuredArticle> {
+		const {
+			url,
+			include_media = true,
+			extract_tags = true,
+			estimate_reading_time = true,
+		} = params;
+
+		try {
+			// Stage 1: Fetch HTML
+			progressCallback?.('fetching', 10, 'Fetching article content...');
+			const html = await HTMLScraperBase.fetchHTML(url);
+			const $ = cheerio.load(html);
+
+			// Stage 2: Extract basic info
+			progressCallback?.('extracting_basic', 25, 'Extracting basic article information...');
+			const title = this.extractTitle($);
+			const subtitle = this.extractSubtitle($);
+			const author = this.extractAuthor($);
+
+			// Stage 3: Extract dates
+			progressCallback?.('extracting_dates', 35, 'Extracting publication dates...');
+			const publishDate = this.extractPublishDate($);
+			const lastModified = this.extractLastModified($);
+
+			// Stage 4: Extract content
+			progressCallback?.('extracting_content', 50, 'Extracting article content...');
+			const content = this.extractContent($, estimate_reading_time);
+
+			// Stage 5: Extract category and tags
+			let category: string | undefined;
+			let tags: string[] | undefined;
+			if (extract_tags) {
+				progressCallback?.('extracting_tags', 65, 'Extracting categories and tags...');
+				category = this.extractCategory($);
+				tags = this.extractTags($);
+			}
+
+			// Stage 6: Extract media
+			let media: MediaContent[] | undefined;
+			if (include_media) {
+				progressCallback?.('extracting_media', 80, 'Extracting media content...');
+				media = this.extractMedia($, url);
+			}
+
+			// Stage 7: Extract metadata
+			progressCallback?.('extracting_metadata', 90, 'Extracting metadata...');
+			const metadata = this.extractMetadata($, url);
+
+			// Stage 8: Finalize
+			progressCallback?.('finalizing', 95, 'Finalizing extraction...');
+			const structuredArticle: StructuredArticle = {
+				url,
+				title,
+				subtitle,
+				author,
+				publishDate,
+				lastModified,
+				category,
+				tags,
+				summary: this.generateSummary(content.paragraphs),
+				content,
+				media,
+				metadata,
+				timestamp: new Date().toISOString(),
+			};
+
+			progressCallback?.('completed', 100, 'Article extraction completed!');
+			return structuredArticle;
+
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			progressCallback?.('error', 0, `Error extracting article: ${errorMessage}`);
+			throw error;
+		}
+	}
+
+	async saveToDatabase(structuredArticle: StructuredArticle): Promise<string> {
+		try {
+			// Check if article already exists
+			const existingPost = await this.prisma.post.findUnique({
+				where: { webUrl: structuredArticle.url }
+			});
+
+			if (existingPost) {
+				// Update existing post
+				await this.prisma.post.update({
+					where: { webUrl: structuredArticle.url },
+					data: {
+						title: structuredArticle.title || existingPost.title,
+						articleText: structuredArticle.content.fullText || existingPost.articleText,
+						summary: structuredArticle.summary || existingPost.summary,
+						bylineWriter: structuredArticle.author || existingPost.bylineWriter,
+						bylineWritersTitle: existingPost.bylineWritersTitle,
+						bylineWritersLocation: existingPost.bylineWritersLocation,
+						featuredImage: structuredArticle.media?.find(m => m.type === 'image')?.url || existingPost.featuredImage,
+						imageItems: structuredArticle.media?.filter(m => m.type === 'image').map(m => m.url) || existingPost.imageItems,
+						imageCaptionItems: structuredArticle.media?.filter(m => m.type === 'image').map(m => m.caption || '') || existingPost.imageCaptionItems,
+						videoItems: structuredArticle.media?.filter(m => m.type === 'video').map(m => m.url) || existingPost.videoItems,
+						audioItems: existingPost.audioItems,
+						audioCaptionItems: existingPost.audioCaptionItems,
+					}
+				});
+				return existingPost.id;
+			} else {
+				// Create new post
+				const newPost = await this.prisma.post.create({
+					data: {
+						webUrl: structuredArticle.url,
+						title: structuredArticle.title || 'Untitled Article',
+						articleText: structuredArticle.content.fullText || '',
+						summary: structuredArticle.summary || '',
+						bylineWriter: structuredArticle.author || 'Unknown',
+						bylineWritersTitle: '',
+						bylineWritersLocation: '',
+						featuredImage: structuredArticle.media?.find(m => m.type === 'image')?.url,
+						imageItems: structuredArticle.media?.filter(m => m.type === 'image').map(m => m.url) || [],
+						imageCaptionItems: structuredArticle.media?.filter(m => m.type === 'image').map(m => m.caption || '') || [],
+						videoItems: structuredArticle.media?.filter(m => m.type === 'video').map(m => m.url) || [],
+						audioItems: [],
+						audioCaptionItems: [],
+					}
+				});
+				return newPost.id;
+			}
+		} catch (error) {
+			console.error('Error saving article to database:', error);
+			throw new Error(`Failed to save article to database: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	// HTTP streaming endpoint method
+	async handleStreamRequest(req: Request, res: Response) {
+		try {
+			const streamRequestSchema = z.object({
+				url: z.string().url(),
+				include_media: z.boolean().default(true),
+				extract_tags: z.boolean().default(true),
+				estimate_reading_time: z.boolean().default(true),
+			});
+
+			const { url, include_media, extract_tags, estimate_reading_time } = 
+				streamRequestSchema.parse(req.body);
+
+			// Set up SSE headers
+			res.writeHead(200, {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				'Connection': 'keep-alive',
+				'Access-Control-Allow-Origin': '*',
+				'Access-Control-Allow-Methods': 'POST',
+				'Access-Control-Allow-Headers': 'Content-Type',
+			});
+
+			// Helper function to send SSE data
+			const sendEvent = (event: string, data: any) => {
+				res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+			};
+
+			// Progress callback for real-time updates
+			const progressCallback = (stage: string, progress: number, message: string) => {
+				sendEvent('progress', { stage, progress, message });
+			};
+
+			// Send initial status
+			sendEvent('progress', { 
+				stage: 'initializing',
+				progress: 0,
+				message: 'Starting article extraction...'
+			});
+
+			// Execute the extraction with progress updates
+			const structuredArticle = await this.executeWithProgress({
+				url,
+				include_media,
+				extract_tags,
+				estimate_reading_time
+			}, progressCallback);
+
+			// Save to database
+			sendEvent('progress', { 
+				stage: 'saving',
+				progress: 95,
+				message: 'Saving article to database...'
+			});
+
+			const postId = await this.saveToDatabase(structuredArticle);
+
+			// Send the final result with database ID
+			sendEvent('complete', {
+				...structuredArticle,
+				postId,
+				savedToDatabase: true
+			});
+
+		} catch (error) {
+			console.error('Stream scrape error:', error);
+			
+			res.write(`event: error\ndata: ${JSON.stringify({
+				message: error instanceof Error ? error.message : 'Unknown error occurred',
+				code: 'EXTRACTION_FAILED'
+			})}\n\n`);
+		} finally {
+			res.end();
 		}
 	}
 

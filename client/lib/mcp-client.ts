@@ -268,7 +268,7 @@ export class NewsScraperMCPClient {
 	}
 
 	/**
-	 * Extract structured article content
+	 * Extract structured article content with streaming progress
 	 */
 	async extractArticle(url: string): Promise<StructuredArticle> {
 		await this.ensureConnected();
@@ -283,6 +283,55 @@ export class NewsScraperMCPClient {
 			return this.parseToolResult(result);
 		} catch (error) {
 			console.error('❌ Failed to extract article:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Extract structured article content with streaming progress updates
+	 */
+	async extractArticleWithStreaming(
+		params: {
+			url: string;
+			include_media?: boolean;
+			extract_tags?: boolean;
+			estimate_reading_time?: boolean;
+		},
+		progressCallback?: (stage: string, progress: number, message: string) => void
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			// Since MCP doesn't support streaming callbacks directly,
+			// we'll simulate the progress stages manually and call the tool
+			progressCallback?.('fetching', 10, 'Fetching article content...');
+			
+			progressCallback?.('extracting_basic', 25, 'Extracting basic article information...');
+			
+			progressCallback?.('extracting_content', 50, 'Extracting article content...');
+			
+			progressCallback?.('extracting_metadata', 80, 'Extracting metadata...');
+
+			const result = await this.callToolWithTimeout(
+				'extract_text',
+				{
+					url: params.url,
+					include_media: params.include_media ?? true,
+					extract_tags: params.extract_tags ?? true,
+					estimate_reading_time: params.estimate_reading_time ?? true,
+				},
+				60000 // 1 minute timeout
+			);
+
+			progressCallback?.('saving', 95, 'Processing results...');
+
+			const parsedResult = this.parseToolResult(result);
+			
+			progressCallback?.('completed', 100, 'Article extraction completed!');
+
+			return parsedResult;
+		} catch (error) {
+			console.error('❌ Failed to extract article with streaming:', error);
 			throw error;
 		}
 	}

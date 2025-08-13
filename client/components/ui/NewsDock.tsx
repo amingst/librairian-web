@@ -609,7 +609,7 @@ export function NewsDock() {
 								queue.length > 0 && queue[0].title
 									? queue[0].title.length > 30
 										? queue[0].title.substring(0, 30) +
-										  '...'
+											'...'
 										: queue[0].title
 									: 'News Article';
 
@@ -626,7 +626,7 @@ export function NewsDock() {
 									? `News Briefing: ${firstArticleTitle} (${dateStr})`
 									: `News Briefing: ${firstArticleTitle} +${
 											articleCount - 1
-									  } more (${dateStr})`;
+										} more (${dateStr})`;
 
 							const reportMetadata = {
 								id: '',
@@ -917,7 +917,9 @@ export function NewsDock() {
 					id: Date.now().toString(),
 					savedAt: new Date().toISOString(),
 				};
-				const trimmed = [...existingBriefings, briefingWithId].slice(-50);
+				const trimmed = [...existingBriefings, briefingWithId].slice(
+					-50
+				);
 				localStorage.setItem(
 					'savedNewsBriefings',
 					JSON.stringify(trimmed)
@@ -1749,9 +1751,9 @@ export function NewsDock() {
 														'high'
 															? 'bg-red-100 text-red-800'
 															: section.importance ===
-															  'medium'
-															? 'bg-yellow-100 text-yellow-800'
-															: 'bg-gray-100 text-gray-800'
+																  'medium'
+																? 'bg-yellow-100 text-yellow-800'
+																: 'bg-gray-100 text-gray-800'
 													}`}
 												>
 													{section.importance.toUpperCase()}

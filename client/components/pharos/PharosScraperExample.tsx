@@ -8,16 +8,27 @@ import {
 import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
 import type { Document, Post } from '@prisma/client';
 import type { NewsArticlePreview, AIModel } from '@shared/types';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+
 import { ScrollArea } from '../ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import {
 	AlertCircleIcon,
 	PlusIcon,
 	DatabaseIcon,
 	CheckIcon,
+	Clock,
+	Tag,
+	X,
+	Loader2,
 } from 'lucide-react';
 import { useNewsDock } from '@/lib/context/NewsDockContext';
 import { ModelSelector } from '@/components/ui/ModelSelector';
+
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+
+
 
 // Component for displaying source icon with fallback
 const SourceIcon = ({
@@ -251,41 +262,114 @@ export default function NewsScraperExample() {
 
 		setScraping(true);
 		try {
-			// Get post IDs from dock items
-			const postIds = queue
-				.filter((item) => item.type === 'article' && item.id)
-				.map((item) => item.id);
+			// Filter dock items to URLs that can be extracted
+			const urlItems = queue.filter((item) => item.url);
 
-			if (postIds.length === 0) {
-				alert('No article items with IDs found in dock');
+			if (urlItems.length === 0) {
+				alert('No items with URLs found in dock');
 				return;
 			}
 
 			console.log(
-				`🚀 Starting HTML article extraction for ${postIds.length} dock items...`
+				`🚀 Starting streaming article extraction for ${urlItems.length} dock items...`
 			);
 
-			// Start the HTML article extraction job for specific posts
-			const result = await mcp.startArticleHtmlScraperJob({
-				postIds: postIds,
-				limit: postIds.length, // Process all dock items
-			});
+			let processedCount = 0;
+			let successCount = 0;
+
+			// Process each URL with streaming
+			for (const item of urlItems) {
+				try {
+					console.log(`📄 Processing: ${item.title} (${item.url})`);
+					
+					const response = await fetch('/api/scrape/article', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ url: item.url }),
+					});
+
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					}
+
+					if (!response.body) {
+						throw new Error('Response body is null');
+					}
+
+					const reader = response.body.getReader();
+					const decoder = new TextDecoder();
+					let buffer = '';
+					let extractedArticle = null;
+
+					while (true) {
+						const { done, value } = await reader.read();
+
+						if (done) break;
+
+						buffer += decoder.decode(value, { stream: true });
+						
+						// Process complete SSE events
+						const events = buffer.split('\n\n');
+						buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+						for (const eventText of events) {
+							if (!eventText.trim()) continue;
+
+							const lines = eventText.split('\n');
+							let eventType = 'message';
+							let data = '';
+
+							for (const line of lines) {
+								if (line.startsWith('event:')) {
+									eventType = line.substring(6).trim();
+								} else if (line.startsWith('data:')) {
+									data = line.substring(5).trim();
+								}
+							}
+
+							// Parse data
+							let parsedData;
+							try {
+								parsedData = JSON.parse(data);
+							} catch {
+								parsedData = data;
+							}
+
+							// Handle events
+							if (eventType === 'progress') {
+								console.log(`📊 Progress: ${typeof parsedData === 'string' ? parsedData : parsedData.message}`);
+							} else if (eventType === 'complete') {
+								extractedArticle = parsedData;
+								console.log(`✅ Completed extraction for: ${item.title}`);
+								break;
+							} else if (eventType === 'error') {
+								throw new Error(typeof parsedData === 'string' ? parsedData : parsedData.message);
+							}
+						}
+
+						if (extractedArticle) break;
+					}
+
+					if (extractedArticle) {
+						successCount++;
+						console.log(`✅ Successfully extracted and saved: ${extractedArticle.title}${extractedArticle.postId ? ` (Post ID: ${extractedArticle.postId})` : ''}`);
+					}
+
+				} catch (error) {
+					console.error(`❌ Failed to extract content for ${item.title}:`, error);
+				}
+
+				processedCount++;
+			}
 
 			console.log(
-				'✅ Completed HTML article extraction for dock items:',
-				result
+				`✅ Completed streaming article extraction for dock items. Processed: ${processedCount}, Successful: ${successCount}`
 			);
 
 			alert(
-				`HTML article extraction completed for dock items!\nProcessed: ${
-					result.totalArticlesProcessed
-				} articles\nSuccessful extractions: ${
-					result.results.filter((r) => r.success).length
-				}\n\nArticle content has been saved to the database.`
+				`Streaming article extraction completed!\nProcessed: ${processedCount} articles\nSuccessful extractions: ${successCount}\n\nArticles have been saved to the database. Use the "Load from Database" button to refresh the view.`
 			);
 
-			// Optionally refresh the data
-			await handleLoadFromDatabase();
 		} catch (error) {
 			console.error(
 				'❌ Failed to extract content for dock items:',
@@ -929,7 +1013,7 @@ export default function NewsScraperExample() {
 							className='w-full px-4 py-2 bg-teal-600 dark:bg-teal-700 text-white rounded hover:bg-teal-700 dark:hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed mb-3'
 						>
 							Extract Content for Dock Items ({queue.length}{' '}
-							items) - HTML
+							items) - Streaming
 						</button>
 
 						{/* Summarize & Save button */}
@@ -1038,6 +1122,7 @@ export default function NewsScraperExample() {
 					</div>
 				</div>
 			</div>
+
 
 			{/* Results - Only showing posts now */}
 			{Object.keys(posts).length > 0 && (
