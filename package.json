@@ -1,6 +1,7 @@
 {
 	"name": "news-scraper-monorepo",
 	"private": true,
+	"packageManager": "npm@8.5.0",
 	"workspaces": [
 		"shared/backend",
 		"shared/types",
@@ -39,6 +40,7 @@
 	"devDependencies": {
 		"concurrently": "^8.2.2",
 		"prisma": "^6.13.0",
-		"tsx": "^4.7.0"
+		"tsx": "^4.7.0",
+		"turbo": "^2.5.5"
 	}
 }

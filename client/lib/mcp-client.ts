@@ -92,9 +92,15 @@ export class NewsScraperMCPClient {
 	 * Connect to the MCP server
 	 */
 	async connect(): Promise<void> {
-		if (this.isConnected) return;
+		if (this.isConnected) {
+			console.log('✅ Already connected to MCP server');
+			return;
+		}
 
 		try {
+			// Ensure clean state before connecting
+			await this.disconnect();
+			
 			// The Client.connect() method automatically starts the transport
 			await this.client.connect(this.transport);
 			this.isConnected = true;

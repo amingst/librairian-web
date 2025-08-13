@@ -8,23 +8,23 @@ export class TextAnalysisMCPClient {
 	private isConnected = false;
 
 	async connect(): Promise<void> {
-		if (this.isConnected && this.client) return;
+		// If already connected with a working client, return early
+		if (this.isConnected && this.client && this.transport) {
+			console.log('🔌 Already connected to text analysis MCP server');
+			return;
+		}
 
 		console.log('🔌 Connecting to text analysis MCP server...', {
 			currentlyConnected: this.isConnected,
-			clientExists: !!this.client
+			clientExists: !!this.client,
+			transportExists: !!this.transport
 		});
 
 		try {
-			// Clean up any existing connection
-			if (this.client) {
-				try {
-					await this.client.close();
-				} catch (e) {
-					console.warn('Error closing existing client:', e);
-				}
-			}
+			// Ensure clean state before connecting
+			await this.disconnect();
 
+			// Create new transport and client
 			this.transport = new StreamableHTTPClientTransport(
 				new URL('http://localhost:3002/mcp')
 			);
@@ -39,13 +39,17 @@ export class TextAnalysisMCPClient {
 				}
 			);
 
+			// Connect to the server
 			await this.client.connect(this.transport);
 			this.isConnected = true;
+			
 			console.log('✅ Connected to text analysis MCP server', {
 				clientExists: !!this.client,
-				isConnected: this.isConnected
+				isConnected: this.isConnected,
+				transportExists: !!this.transport
 			});
 		} catch (error) {
+			// Clean up on connection failure
 			this.isConnected = false;
 			this.client = null;
 			this.transport = null;
@@ -58,12 +62,19 @@ export class TextAnalysisMCPClient {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.client && this.isConnected) {
-			await this.client.close();
-			this.isConnected = false;
-			this.client = null;
-			this.transport = null;
-			console.log('Disconnected from text analysis MCP server');
+		if (this.client || this.transport) {
+			try {
+				if (this.client && this.isConnected) {
+					await this.client.close();
+				}
+			} catch (error) {
+				console.warn('Error during disconnect:', error);
+			} finally {
+				this.isConnected = false;
+				this.client = null;
+				this.transport = null;
+				console.log('🔌 Disconnected from text analysis MCP server');
+			}
 		}
 	}
 
