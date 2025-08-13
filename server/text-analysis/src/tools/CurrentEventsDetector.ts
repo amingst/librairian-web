@@ -15,15 +15,28 @@ export class CurrentEventsDetectorTool extends MCPTool {
         return 'Detects trending current events from a collection of news articles';
     }
 
-    get inputSchema(): z.ZodSchema {
-        return CurrentEventsSchema;
-    }
+	get inputSchema(): z.ZodSchema {
+		return CurrentEventsSchema;
+	}
 
-    get schema(): z.ZodSchema {
-        return CurrentEventsSchema;
-    }
-
-    async execute(params: z.infer<typeof CurrentEventsSchema>): Promise<any> {
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				articles: {
+					type: "array",
+					description: "Array of news articles to analyze",
+					items: { type: "object" }
+				},
+				timeframe: {
+					type: "string",
+					description: "Timeframe for event detection",
+					default: "24h"
+				}
+			},
+			required: ["articles"]
+		};
+	}    async execute(params: z.infer<typeof CurrentEventsSchema>): Promise<any> {
         const { articles, timeframe } = params;
         
         // Simple current events detection placeholder

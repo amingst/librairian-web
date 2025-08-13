@@ -98,8 +98,69 @@ export class NewsBriefingFromSummariesTool extends MCPTool {
 		return 'Creates a news briefing using precomputed summaries (Post.summary) to reduce token usage.';
 	}
 
-	get schema(): z.ZodSchema {
-		return BriefingFromSummariesSchema;
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				articles: {
+					type: "array",
+					description: "Array of news articles with summaries",
+					items: {
+						type: "object",
+						properties: {
+							id: { type: "string" },
+							title: { type: "string" },
+							link: { type: "string", format: "uri" },
+							excerpt: { type: "string", description: "Summary text" },
+							source: {
+								type: "object",
+								properties: {
+									site: { type: "string" },
+									domain: { type: "string" },
+									section: { type: "string" }
+								},
+								required: ["site", "domain"]
+							},
+							publishDate: { type: "string" }
+						},
+						required: ["title", "link", "source"]
+					}
+				},
+				ids: {
+					type: "array",
+					description: "Array of article/post IDs to load from database",
+					items: { type: "string" }
+				},
+				briefingType: {
+					type: "string",
+					enum: ["executive", "detailed", "summary"],
+					default: "summary"
+				},
+				targetAudience: {
+					type: "string",
+					enum: ["general", "business", "technical", "academic"],
+					default: "general"
+				},
+				includeSourceAttribution: {
+					type: "boolean",
+					default: true
+				},
+				maxSections: {
+					type: "number",
+					minimum: 3,
+					maximum: 20,
+					default: 10
+				},
+				prioritizeTopics: {
+					type: "array",
+					items: { type: "string" }
+				},
+				includeAllSections: {
+					type: "boolean",
+					default: true
+				}
+			}
+		};
 	}
 
 	private async loadConfigData(): Promise<void> {

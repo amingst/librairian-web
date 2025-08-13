@@ -183,8 +183,75 @@ export class NewsBriefingTool extends MCPTool {
 		return NewsBriefingSchema;
 	}
 
-	get schema(): z.ZodSchema {
-		return NewsBriefingSchema;
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				articles: {
+					type: "array",
+					description: "Array of news articles to create briefing from (optional if ids provided)",
+					items: {
+						type: "object",
+						properties: {
+							id: { type: "string" },
+							title: { type: "string" },
+							link: { type: "string", format: "uri" },
+							excerpt: { type: "string" },
+							source: {
+								type: "object",
+								properties: {
+									site: { type: "string" },
+									domain: { type: "string" },
+									section: { type: "string" }
+								},
+								required: ["site", "domain"]
+							},
+							publishDate: { type: "string" }
+						},
+						required: ["title", "link", "source"]
+					}
+				},
+				ids: {
+					type: "array",
+					description: "Array of article/post IDs to load from the database",
+					items: { type: "string" }
+				},
+				briefingType: {
+					type: "string",
+					enum: ["executive", "detailed", "summary"],
+					default: "summary",
+					description: "Type of briefing to generate"
+				},
+				targetAudience: {
+					type: "string",
+					enum: ["general", "business", "technical", "academic"],
+					default: "general",
+					description: "Target audience for the briefing"
+				},
+				includeSourceAttribution: {
+					type: "boolean",
+					default: true,
+					description: "Whether to include source links and citations"
+				},
+				maxSections: {
+					type: "number",
+					minimum: 3,
+					maximum: 20,
+					default: 10,
+					description: "Maximum number of sections in the briefing"
+				},
+				prioritizeTopics: {
+					type: "array",
+					description: "Topics to prioritize in the briefing",
+					items: { type: "string" }
+				},
+				includeAllSections: {
+					type: "boolean",
+					default: true,
+					description: "If true include all generated sections and ignore maxSections slice"
+				}
+			}
+		};
 	}
 
 	async execute(

@@ -53,8 +53,30 @@ export class ArticleGrouperTool extends MCPTool {
 		return GroupArticlesSchema;
 	}
 
-	get schema(): z.ZodSchema {
-		return GroupArticlesSchema;
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				articles: {
+					type: "array",
+					description: "Array of news articles to group",
+					items: { type: "object" }
+				},
+				options: {
+					type: "object",
+					description: "Grouping options",
+					properties: {
+						maxGroups: { type: "number", description: "Maximum number of groups", default: 10 },
+						minArticlesPerGroup: { type: "number", description: "Minimum articles per group", default: 2 },
+						useOpenAI: { type: "boolean", description: "Use OpenAI for grouping", default: true },
+						extractFullContent: { type: "boolean", description: "Extract full article content", default: true },
+						minContentLength: { type: "number", description: "Minimum content length", default: 100 },
+						skipContentFiltering: { type: "boolean", description: "Skip content filtering", default: false }
+					}
+				}
+			},
+			required: ["articles"]
+		};
 	}
 
 	async execute(

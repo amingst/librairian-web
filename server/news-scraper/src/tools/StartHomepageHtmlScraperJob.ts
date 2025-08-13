@@ -52,8 +52,29 @@ export class StartHomepageHtmlScraperJob extends MCPTool {
 		return HtmlNewsHomepageSchema;
 	}
 
-	get schema(): z.ZodType {
-		return HtmlNewsHomepageSchema;
+	get schema(): Record<string, any> {
+		return {
+			type: 'object',
+			properties: {
+				urls: {
+					type: 'array',
+					items: {
+						type: 'string',
+						format: 'uri'
+					},
+					minItems: 1,
+					description: 'An array of news homepage URLs to scrape.'
+				},
+				limit: {
+					type: 'number',
+					minimum: 1,
+					maximum: 100,
+					default: 20,
+					description: 'Maximum number of articles to extract per site'
+				}
+			},
+			required: ['urls']
+		};
 	}
 
 	async execute(

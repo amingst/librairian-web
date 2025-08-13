@@ -19,15 +19,31 @@ export class TextAnalysisTool extends MCPTool {
         return 'Performs text analysis including sentiment analysis and keyword extraction';
     }
 
-    get inputSchema(): z.ZodSchema {
-        return TextAnalysisSchema;
-    }
+	get inputSchema(): z.ZodSchema {
+		return TextAnalysisSchema;
+	}
 
-    get schema(): z.ZodSchema {
-        return TextAnalysisSchema;
-    }
-
-    async execute(params: z.infer<typeof TextAnalysisSchema>): Promise<any> {
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				text: {
+					type: "string",
+					description: "Text content to analyze"
+				},
+				options: {
+					type: "object",
+					description: "Analysis options",
+					properties: {
+						sentiment: { type: "boolean", description: "Perform sentiment analysis", default: true },
+						keywords: { type: "boolean", description: "Extract keywords", default: true },
+						summary: { type: "boolean", description: "Generate summary", default: false }
+					}
+				}
+			},
+			required: ["text"]
+		};
+	}    async execute(params: z.infer<typeof TextAnalysisSchema>): Promise<any> {
         const { text, options } = params;
         
         const result: any = {

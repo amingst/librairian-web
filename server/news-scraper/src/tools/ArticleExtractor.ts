@@ -54,7 +54,32 @@ export class ArticleExtractorTool extends MCPTool {
 	}
 
 	get schema(): Record<string, any> {
-		return ArticleExtractorTool.inputSchema.shape;
+		return {
+			type: 'object',
+			properties: {
+				url: {
+					type: 'string',
+					format: 'uri',
+					description: 'The URL of the news article to extract'
+				},
+				include_media: {
+					type: 'boolean',
+					default: true,
+					description: 'Whether to extract media content (images, videos)'
+				},
+				extract_tags: {
+					type: 'boolean',
+					default: true,
+					description: 'Whether to extract article tags and categories'
+				},
+				estimate_reading_time: {
+					type: 'boolean',
+					default: true,
+					description: 'Whether to calculate estimated reading time'
+				}
+			},
+			required: ['url']
+		};
 	}
 
 	async execute(params: ExtractTextParams): Promise<MCPToolResponse> {

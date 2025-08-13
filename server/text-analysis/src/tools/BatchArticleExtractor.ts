@@ -53,8 +53,42 @@ export class BatchArticleExtractorTool extends MCPTool {
 		return BatchExtractSchema;
 	}
 
-	get schema(): z.ZodSchema {
-		return BatchExtractSchema;
+	get schema(): Record<string, any> {
+		return {
+			type: "object",
+			properties: {
+				articles: {
+					type: "array",
+					description: "Array of articles to extract content from",
+					items: {
+						type: "object",
+						properties: {
+							title: { type: "string" },
+							link: { type: "string" },
+							source: {
+								type: "object",
+								properties: {
+									site: { type: "string" },
+									domain: { type: "string" }
+								},
+								required: ["site", "domain"]
+							}
+						},
+						required: ["title", "link", "source"]
+					}
+				},
+				options: {
+					type: "object",
+					description: "Extraction options",
+					properties: {
+						maxArticles: { type: "number", description: "Maximum articles to extract", default: 20 },
+						includeFullText: { type: "boolean", description: "Include full text content", default: true },
+						timeout: { type: "number", description: "Timeout in milliseconds", default: 10000 }
+					}
+				}
+			},
+			required: ["articles"]
+		};
 	}
 
 	async execute(

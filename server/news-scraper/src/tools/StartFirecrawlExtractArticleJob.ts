@@ -45,7 +45,25 @@ export class StartFirecrawlExtractArticleJob extends MCPTool {
 		return 'Starts a Firecrawl job to extract article content from the web';
 	}
 	get schema(): Record<string, any> {
-		return FirecrawlArticleExtractionSchema;
+		return {
+			type: 'object',
+			properties: {
+				postIds: {
+					type: 'array',
+					items: {
+						type: 'string'
+					},
+					description: 'An array of post IDs to extract content for. If not provided, will find posts needing content extraction.'
+				},
+				limit: {
+					type: 'number',
+					minimum: 1,
+					maximum: 100,
+					default: 50,
+					description: 'Maximum number of posts to process in this job'
+				}
+			}
+		};
 	}
 
 	async execute(
