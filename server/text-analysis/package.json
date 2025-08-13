@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "tsc && chmod +x build/main.js",
 		"start": "node build/main.js",
-		"dev": "tsx watch src/main.ts",
+		"dev": "nodemon --watch src --exec \"tsx src/main.ts\"",
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"clean": "rm -rf build && rm -rf node_modules"
 	},
