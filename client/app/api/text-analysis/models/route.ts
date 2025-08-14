@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AIModel, ModelResponse } from '@shared/types';
 
-const TEXT_ANALYSIS_SERVER_URL = process.env.TEXT_ANALYSIS_SERVER_URL || 'http://localhost:3002';
+const PHAROS_SERVER_URL =
+	process.env.PHAROS_SERVER_URL || 'http://localhost:3001';
 
-export async function GET(req: NextRequest): Promise<NextResponse<ModelResponse | { error: string }>> {
+export async function GET(
+	req: NextRequest
+): Promise<NextResponse<ModelResponse | { error: string }>> {
 	try {
 		// Extract query parameters
 		const url = new URL(req.url);
@@ -16,7 +19,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ModelResponse 
 		if (costTier) queryParams.append('costTier', costTier);
 
 		const queryString = queryParams.toString();
-		const fetchUrl = `${TEXT_ANALYSIS_SERVER_URL}/api/models${queryString ? `?${queryString}` : ''}`;
+		const fetchUrl = `${PHAROS_SERVER_URL}/api/models${
+			queryString ? `?${queryString}` : ''
+		}`;
 
 		// Fetch from text-analysis server
 		const response = await fetch(fetchUrl, {
@@ -27,7 +32,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ModelResponse 
 		});
 
 		if (!response.ok) {
-			throw new Error(`Text-analysis server responded with ${response.status}: ${response.statusText}`);
+			throw new Error(
+				`Text-analysis server responded with ${response.status}: ${response.statusText}`
+			);
 		}
 
 		const data = await response.json();
@@ -40,14 +47,18 @@ export async function GET(req: NextRequest): Promise<NextResponse<ModelResponse 
 
 		return NextResponse.json(modelResponse);
 	} catch (error) {
-		console.error('Error fetching models from text-analysis server:', error);
-		
+		console.error(
+			'Error fetching models from text-analysis server:',
+			error
+		);
+
 		// Return error response
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const errorMessage =
+			error instanceof Error ? error.message : 'Unknown error';
 		return NextResponse.json(
-			{ 
+			{
 				error: 'Failed to fetch models from text-analysis server',
-				details: errorMessage 
+				details: errorMessage,
 			},
 			{ status: 500 }
 		);

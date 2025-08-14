@@ -9,6 +9,7 @@ import { inject, injectable } from 'inversify';
 import { PrismaClientFactory } from './PrismaClientFactory.js';
 import { PrismaClient } from '@prisma/client';
 import { registerControllers } from './controller/controller.decorator.js';
+import { IMCPPrompt } from './prompt.js';
 
 export interface MCPServerConfig {
 	serverInfo: MCPImplementation;
@@ -36,6 +37,8 @@ export class MCPHttpServer {
 		sse: {} as Record<string, SSEServerTransport>,
 	};
 	private prisma: PrismaClient;
+	private registeredResources: Map<string, any> = new Map();
+	private registeredPrompts: Map<string, any> = new Map();
 
 	constructor(
 		@inject(Symbol.for('MCPServerConfig'))
@@ -220,6 +223,42 @@ export class MCPHttpServer {
 				console.log(`✓ Registered tool: ${tool.name}`);
 			} else {
 				console.warn(`⚠️  Invalid tool provided:`, tool);
+			}
+		}
+	}
+
+	public registerPrompts(prompts: IMCPPrompt[]) {
+		console.log(`Registering ${prompts.length} prompts with MCP server`);
+
+		for (const prompt of prompts) {
+			if (
+				prompt &&
+				typeof prompt.name === 'string' &&
+				typeof prompt.callback === 'function'
+			) {
+				this.registeredPrompts.set(prompt.name, prompt);
+				console.log(`✓ Registered prompt: ${prompt.name}`);
+			} else {
+				console.warn(`⚠️  Invalid prompt provided:`, prompt);
+			}
+		}
+	}
+
+	public registerResources(resources: any[]) {
+		console.log(
+			`Registering ${resources.length} resources with MCP server`
+		);
+
+		for (const resource of resources) {
+			if (
+				resource &&
+				typeof resource.name === 'string' &&
+				typeof resource.callback === 'function'
+			) {
+				this.registeredResources.set(resource.name, resource);
+				console.log(`✓ Registered resource: ${resource.name}`);
+			} else {
+				console.warn(`⚠️  Invalid resource provided:`, resource);
 			}
 		}
 	}

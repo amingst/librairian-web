@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-	mcpClient,
+	pharosClient,
 	type NewsSource,
 	type NewsSourceDetails,
-} from '../../lib/mcp-client';
+} from '../../lib/pharos-client';
 import type { NewsArticlePreview } from '@shared/types';
 
 interface UseMCPClientState {
@@ -119,7 +119,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		setError(null);
 
 		try {
-			await mcpClient.connect();
+			await pharosClient.connect();
 			setConnected(true);
 		} catch (error) {
 			const errorMessage =
@@ -136,7 +136,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		if (!state.isConnected) return;
 
 		try {
-			await mcpClient.disconnect();
+			await pharosClient.disconnect();
 			setConnected(false);
 		} catch (error) {
 			const errorMessage =
@@ -152,7 +152,11 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		setError(null);
 
 		try {
-			const sources = await mcpClient.getNewsSources();
+			const response = await fetch('/api/pharos/news-sources');
+			if (!response.ok) {
+				throw new Error('Failed to fetch news sources');
+			}
+			const sources = await response.json();
 			setSources(sources);
 		} catch (error) {
 			const errorMessage =
@@ -178,7 +182,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.scrapeSelectedSources(
+				const result = await pharosClient.scrapeSelectedSources(
 					sourceIds,
 					options
 				);
@@ -211,7 +215,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.scrapeWebpage({
+				const result = await pharosClient.scrapeWebpage({
 					url,
 					...options,
 				});
@@ -235,7 +239,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		setError(null);
 
 		try {
-			const result = await mcpClient.extractArticle(url);
+			const result = await pharosClient.extractArticle(url);
 			return result;
 		} catch (error) {
 			const errorMessage =
@@ -263,7 +267,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.searchContent({
+				const result = await pharosClient.searchContent({
 					url,
 					query,
 					...options,
@@ -289,7 +293,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.startHomepageFirecrawlJob(
+				const result = await pharosClient.startHomepageFirecrawlJob(
 					params
 				);
 				return result;
@@ -312,7 +316,13 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 		setError(null);
 
 		try {
-			const result = await mcpClient.getNewsSourceDetails(sourceId);
+			const response = await fetch(
+				`/api/pharos/news-sources/${sourceId}`
+			);
+			if (!response.ok) {
+				throw new Error('Failed to fetch news source details');
+			}
+			const result = await response.json();
 			return result;
 		} catch (error) {
 			const errorMessage =
@@ -343,9 +353,8 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.startArticleExtractFirecrawlJob(
-					params
-				);
+				const result =
+					await pharosClient.startArticleExtractFirecrawlJob(params);
 				return result;
 			} catch (error) {
 				const errorMessage =
@@ -367,7 +376,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.startHomepageHtmlScraperJob(
+				const result = await pharosClient.startHomepageHtmlScraperJob(
 					params
 				);
 				return result;
@@ -391,7 +400,7 @@ export function useMCPClient(): UseMCPClientState & UseMCPClientActions {
 			setError(null);
 
 			try {
-				const result = await mcpClient.startArticleHtmlScraperJob(
+				const result = await pharosClient.startArticleHtmlScraperJob(
 					params
 				);
 				return result;

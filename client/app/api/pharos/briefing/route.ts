@@ -9,7 +9,7 @@ async function callMcpTool(tool: string, args: any) {
 		params: { name: tool, arguments: args },
 	};
 
-	const resp = await fetch('http://localhost:3002/mcp', {
+	const resp = await fetch('http://localhost:3001/mcp', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(rpcRequest),

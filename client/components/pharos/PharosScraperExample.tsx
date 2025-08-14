@@ -5,7 +5,7 @@ import {
 	useMCPClient,
 	useSelectedSources,
 } from '../../hooks/pharos/use-mcp-client';
-import { TextAnalysisMCPClient } from '@/lib/text-analysis-client';
+import { pharosClient } from '@/lib/pharos-client';
 import type { Document, Post } from '@prisma/client';
 import type { NewsArticlePreview, AIModel } from '@shared/types';
 
@@ -26,9 +26,13 @@ import { ModelSelector } from '@/components/ui/ModelSelector';
 
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-
-
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '../ui/card';
 
 // Component for displaying source icon with fallback
 const SourceIcon = ({
@@ -196,8 +200,8 @@ export default function NewsScraperExample() {
 	const [loading, setLoading] = useState(false);
 	const [summarizing, setSummarizing] = useState(false); // Added
 	const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
-	const [textAnalysisClient] = useState(() => new TextAnalysisMCPClient());
-	
+	// Using unified pharosClient instead of separate textAnalysisClient
+
 	// Set default model on component mount
 	useEffect(() => {
 		if (!selectedModel) {
@@ -240,14 +244,14 @@ export default function NewsScraperExample() {
 			}
 
 			// Connect to text analysis server
-			textAnalysisClient.connect().catch(console.error);
+			// pharosClient connection already handled by useMCPClient hook
 		};
 
 		initializeApp();
 
 		return () => {
 			// Don't manually disconnect documentClient since it extends mcp client
-			textAnalysisClient.disconnect().catch(console.error);
+			// pharosClient disconnection handled by useMCPClient hook
 		};
 	}, [mcp.isConnected, mcp.isLoading]);
 
@@ -281,7 +285,7 @@ export default function NewsScraperExample() {
 			for (const item of urlItems) {
 				try {
 					console.log(`📄 Processing: ${item.title} (${item.url})`);
-					
+
 					const response = await fetch('/api/scrape/article', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
@@ -289,7 +293,9 @@ export default function NewsScraperExample() {
 					});
 
 					if (!response.ok) {
-						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+						throw new Error(
+							`HTTP ${response.status}: ${response.statusText}`
+						);
 					}
 
 					if (!response.body) {
@@ -307,7 +313,7 @@ export default function NewsScraperExample() {
 						if (done) break;
 
 						buffer += decoder.decode(value, { stream: true });
-						
+
 						// Process complete SSE events
 						const events = buffer.split('\n\n');
 						buffer = events.pop() || ''; // Keep incomplete event in buffer
@@ -337,13 +343,25 @@ export default function NewsScraperExample() {
 
 							// Handle events
 							if (eventType === 'progress') {
-								console.log(`📊 Progress: ${typeof parsedData === 'string' ? parsedData : parsedData.message}`);
+								console.log(
+									`📊 Progress: ${
+										typeof parsedData === 'string'
+											? parsedData
+											: parsedData.message
+									}`
+								);
 							} else if (eventType === 'complete') {
 								extractedArticle = parsedData;
-								console.log(`✅ Completed extraction for: ${item.title}`);
+								console.log(
+									`✅ Completed extraction for: ${item.title}`
+								);
 								break;
 							} else if (eventType === 'error') {
-								throw new Error(typeof parsedData === 'string' ? parsedData : parsedData.message);
+								throw new Error(
+									typeof parsedData === 'string'
+										? parsedData
+										: parsedData.message
+								);
 							}
 						}
 
@@ -352,11 +370,21 @@ export default function NewsScraperExample() {
 
 					if (extractedArticle) {
 						successCount++;
-						console.log(`✅ Successfully extracted and saved: ${extractedArticle.title}${extractedArticle.postId ? ` (Post ID: ${extractedArticle.postId})` : ''}`);
+						console.log(
+							`✅ Successfully extracted and saved: ${
+								extractedArticle.title
+							}${
+								extractedArticle.postId
+									? ` (Post ID: ${extractedArticle.postId})`
+									: ''
+							}`
+						);
 					}
-
 				} catch (error) {
-					console.error(`❌ Failed to extract content for ${item.title}:`, error);
+					console.error(
+						`❌ Failed to extract content for ${item.title}:`,
+						error
+					);
 				}
 
 				processedCount++;
@@ -369,7 +397,6 @@ export default function NewsScraperExample() {
 			alert(
 				`Streaming article extraction completed!\nProcessed: ${processedCount} articles\nSuccessful extractions: ${successCount}\n\nArticles have been saved to the database. Use the "Load from Database" button to refresh the view.`
 			);
-
 		} catch (error) {
 			console.error(
 				'❌ Failed to extract content for dock items:',
@@ -392,14 +419,19 @@ export default function NewsScraperExample() {
 
 		setScraping(true);
 		try {
-			// Get URLs for the selected sources
-			const selectedSourceDetails = await Promise.all(
-				selection.selectedSources.map((id) =>
-					mcp.getNewsSourceDetails(id)
-				)
+			// Get URLs for the selected sources from local API
+			const response = await fetch('/api/pharos/news-sources');
+			if (!response.ok) {
+				throw new Error('Failed to fetch news sources');
+			}
+			const allSources = await response.json();
+
+			// Filter to get only selected sources
+			const selectedSourceDetails = allSources.filter((source: any) =>
+				selection.selectedSources.includes(source.id)
 			);
 
-			const urls = selectedSourceDetails.map((source) => source.url);
+			const urls = selectedSourceDetails.map((source: any) => source.url);
 			console.log(
 				`🚀 Starting ${homepageTool} homepage scraping for ${urls.length} URLs:`,
 				urls
@@ -614,12 +646,12 @@ export default function NewsScraperExample() {
 		setSummarizing(true);
 		try {
 			console.log('🔌 Checking text analysis client connection...');
-			if (!textAnalysisClient['connected']) {
-				console.log('📡 Connecting to text analysis client...');
-				await textAnalysisClient.connect();
-				console.log('✅ Connected to text analysis client');
+			if (!pharosClient.connected) {
+				console.log('📡 Connecting to pharos client...');
+				await pharosClient.connect();
+				console.log('✅ Connected to pharos client');
 			} else {
-				console.log('✅ Text analysis client already connected');
+				console.log('✅ Pharos client already connected');
 			}
 
 			console.log(
@@ -661,22 +693,27 @@ export default function NewsScraperExample() {
 						contentLength: content.slice(0, 8000).length,
 						source: item.source?.name,
 						date: item.publishedAt,
-						selectedModel: selectedModel?.id || 'gpt-4o-mini'
+						selectedModel: selectedModel?.id || 'gpt-4o-mini',
 					});
 
-					console.log('🔧 textAnalysisClient connected:', textAnalysisClient.connected);
-					console.log('🔧 About to call textAnalysisClient.summarizeArticlesBatch...');
-					
+					console.log(
+						'🔧 pharosClient connected:',
+						pharosClient.connected
+					);
+					console.log(
+						'🔧 About to call pharosClient.summarizeArticlesBatch...'
+					);
+
 					// Ensure connection before calling
-					if (!textAnalysisClient.connected) {
-						console.log('🔄 Client not connected, attempting to connect...');
-						await textAnalysisClient.connect();
+					if (!pharosClient.connected) {
+						console.log(
+							'🔄 Client not connected, attempting to connect...'
+						);
+						await pharosClient.connect();
 						console.log('✅ Client connected successfully');
 					}
 
-					const result = await (
-						textAnalysisClient as any
-					).summarizeArticlesBatch(
+					const result = await pharosClient.summarizeArticlesBatch(
 						[
 							{
 								title: item.title || 'Untitled',
@@ -689,7 +726,10 @@ export default function NewsScraperExample() {
 						'brief',
 						selectedModel?.id || 'gpt-4o-mini' // Use selected model or default
 					);
-					console.log('🎯 textAnalysisClient.summarizeArticlesBatch completed with result:', result);
+					console.log(
+						'🎯 textAnalysisClient.summarizeArticlesBatch completed with result:',
+						result
+					);
 
 					console.log('📋 Summarization result:', result);
 
@@ -707,15 +747,22 @@ export default function NewsScraperExample() {
 					});
 
 					if (summaryText && summaryText.length > 0) {
-						console.log(`💾 Updating post ${item.id} with summary...`);
-						const resp = await fetch(`/api/pharos/posts/${item.id}`, {
-							method: 'PUT',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ summary: summaryText }),
-						});
+						console.log(
+							`💾 Updating post ${item.id} with summary...`
+						);
+						const resp = await fetch(
+							`/api/pharos/posts/${item.id}`,
+							{
+								method: 'PUT',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ summary: summaryText }),
+							}
+						);
 						if (resp.ok) {
 							updated += 1;
-							console.log(`✅ Successfully updated post ${item.id}`);
+							console.log(
+								`✅ Successfully updated post ${item.id}`
+							);
 						} else {
 							const errorText = await resp.text();
 							console.warn(
@@ -734,8 +781,14 @@ export default function NewsScraperExample() {
 					console.error('❌ Error processing article:', {
 						articleId: item.id,
 						title: item.title,
-						error: articleError instanceof Error ? articleError.message : String(articleError),
-						stack: articleError instanceof Error ? articleError.stack : undefined
+						error:
+							articleError instanceof Error
+								? articleError.message
+								: String(articleError),
+						stack:
+							articleError instanceof Error
+								? articleError.stack
+								: undefined,
 					});
 					// Continue with next article instead of failing the whole batch
 				}
@@ -971,7 +1024,7 @@ export default function NewsScraperExample() {
 					<ModelSelector
 						selectedModel={selectedModel?.id}
 						onModelSelect={setSelectedModel}
-						className="mb-4"
+						className='mb-4'
 					/>
 
 					<div className='border rounded-lg p-4'>
@@ -1122,7 +1175,6 @@ export default function NewsScraperExample() {
 					</div>
 				</div>
 			</div>
-
 
 			{/* Results - Only showing posts now */}
 			{Object.keys(posts).length > 0 && (

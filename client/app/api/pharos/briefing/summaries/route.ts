@@ -1,7 +1,12 @@
+import { createBriefing, NewsBriefing } from '@/app/actions/pharos/briefings';
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 } from 'uuid';
 
 // Simple JSON-RPC helper to call MCP server
-async function callMcpTool(tool: string, args: any) {
+async function callMcpTool(
+	tool: string,
+	args: any
+): Promise<Omit<NewsBriefing, 'id' | 'url' | 'createdAt'>> {
 	const rpcRequest = {
 		jsonrpc: '2.0',
 		id: Date.now(),
@@ -9,7 +14,7 @@ async function callMcpTool(tool: string, args: any) {
 		params: { name: tool, arguments: args },
 	};
 
-	const resp = await fetch('http://localhost:3002/mcp', {
+	const resp = await fetch('http://localhost:3001/mcp', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(rpcRequest),
@@ -39,7 +44,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		const args = {
-			ids, // corrected from postIds
+			ids,
 			briefingType: options?.briefingType || 'summary',
 			targetAudience: options?.targetAudience || 'general',
 			includeSourceAttribution:
@@ -54,14 +59,24 @@ export async function POST(req: NextRequest) {
 			args
 		);
 
-		return NextResponse.json({ success: true, data: result });
+		const id = v4();
+		const briefing: NewsBriefing = {
+			...result,
+			id,
+			url: `/pharos/briefings/view/${id}`,
+			createdAt: new Date().toISOString(),
+		};
+
+		// Store the complete briefing data in the cookie
+		await createBriefing(briefing);
+
+		return NextResponse.json({ success: true, data: briefing });
 	} catch (error) {
 		console.error('Error generating briefing from summaries:', error);
 		return NextResponse.json(
 			{
 				success: false,
-				error:
-					error instanceof Error ? error.message : 'Unknown error',
+				error: error instanceof Error ? error.message : 'Unknown error',
 			},
 			{ status: 500 }
 		);

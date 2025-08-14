@@ -30,6 +30,12 @@ export interface SidebarData {
 		source: string;
 		lastAccessed: string;
 	}>;
+	briefings?: Array<{
+		id: string;
+		title: string;
+		createdAt: string;
+		url: string;
+	}>;
 	stats?: {
 		totalDocuments?: number;
 		processedToday?: number;

@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-const NEWS_SCRAPER_URL = process.env.NEWS_SCRAPER_URL || 'http://localhost:3001';
+const PHAROS_SERVER_URL =
+	process.env.PHAROS_SERVER_URL || 'http://localhost:3001';
 
 // Input validation schema
 const scrapeRequestSchema = z.object({
@@ -17,16 +18,21 @@ export async function POST(req: NextRequest) {
 		const validatedData = scrapeRequestSchema.parse(body);
 
 		// Call the MCP server's streaming endpoint directly
-		const response = await fetch(`${NEWS_SCRAPER_URL}/api/stream/scrape-article`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(validatedData),
-		});
+		const response = await fetch(
+			`${PHAROS_SERVER_URL}/api/stream/scrape-article`,
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(validatedData),
+			}
+		);
 
 		if (!response.ok) {
-			throw new Error(`MCP server responded with ${response.status}: ${response.statusText}`);
+			throw new Error(
+				`MCP server responded with ${response.status}: ${response.statusText}`
+			);
 		}
 
 		// Return the real streaming response with actual progress updates
@@ -34,24 +40,24 @@ export async function POST(req: NextRequest) {
 			headers: {
 				'Content-Type': 'text/event-stream',
 				'Cache-Control': 'no-cache',
-				'Connection': 'keep-alive',
+				Connection: 'keep-alive',
 				'Access-Control-Allow-Origin': '*',
 				'Access-Control-Allow-Methods': 'POST',
 				'Access-Control-Allow-Headers': 'Content-Type',
 			},
 		});
-
 	} catch (error) {
 		console.error('Request validation error:', error);
-		
+
 		return new Response(
-			JSON.stringify({ 
+			JSON.stringify({
 				error: 'Invalid request',
-				details: error instanceof Error ? error.message : 'Unknown error'
+				details:
+					error instanceof Error ? error.message : 'Unknown error',
 			}),
-			{ 
+			{
 				status: 400,
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json' },
 			}
 		);
 	}

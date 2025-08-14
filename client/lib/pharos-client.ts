@@ -11,40 +11,24 @@ import type {
 } from '@shared/types';
 
 // MCP Client Configuration
-interface MCPClientConfig {
+interface PharosClientConfig {
 	serverUrl: string;
 	timeout?: number;
 }
 
-// Tool execution results - use proper MCP types
-type MCPResult = any; // Using any for now since the MCP types are complex
+// Tool execution results
+type MCPResult = any;
 
-export class NewsScraperMCPClient {
-	private client: Client;
-	private transport: StreamableHTTPClientTransport;
+export class PharosClient {
+	private client: Client | null = null;
+	private transport: StreamableHTTPClientTransport | null = null;
 	private isConnected: boolean = false;
 	private serverUrl: string;
 
 	constructor(
-		config: MCPClientConfig = { serverUrl: 'http://localhost:3001' }
+		config: PharosClientConfig = { serverUrl: 'http://localhost:3001' }
 	) {
 		this.serverUrl = config.serverUrl;
-
-		// Create HTTP transport for your Express MCP server
-		this.transport = new StreamableHTTPClientTransport(
-			new URL(`${this.serverUrl}/mcp`)
-		);
-
-		// Create MCP client
-		this.client = new Client(
-			{
-				name: 'news-scraper-client',
-				version: '1.0.0',
-			},
-			{
-				capabilities: {},
-			}
-		);
 	}
 
 	/**
@@ -55,6 +39,10 @@ export class NewsScraperMCPClient {
 		args: any,
 		timeoutMs: number = 120000 // 2 minutes default
 	): Promise<any> {
+		if (!this.client || !this.isConnected) {
+			throw new Error('Client not connected');
+		}
+
 		// For debugging - disable timeout for Firecrawl calls in development
 		if (
 			toolName === 'firecrawl_news_homepage' &&
@@ -92,22 +80,39 @@ export class NewsScraperMCPClient {
 	 * Connect to the MCP server
 	 */
 	async connect(): Promise<void> {
-		if (this.isConnected) {
-			console.log('✅ Already connected to MCP server');
+		if (this.isConnected && this.client && this.transport) {
+			console.log('✅ Already connected to Pharos MCP server');
 			return;
 		}
 
 		try {
 			// Ensure clean state before connecting
 			await this.disconnect();
-			
-			// The Client.connect() method automatically starts the transport
+
+			// Create new transport and client
+			this.transport = new StreamableHTTPClientTransport(
+				new URL(`${this.serverUrl}/mcp`)
+			);
+
+			this.client = new Client(
+				{
+					name: 'pharos-client',
+					version: '1.0.0',
+				},
+				{
+					capabilities: {},
+				}
+			);
+
+			// Connect to the server
 			await this.client.connect(this.transport);
 			this.isConnected = true;
-			console.log('✅ Connected to MCP server');
+			console.log('✅ Connected to Pharos MCP server');
 		} catch (error) {
-			console.error('❌ Failed to connect to MCP server:', error);
-			this.isConnected = false; // Reset connection state on failure
+			console.error('❌ Failed to connect to Pharos MCP server:', error);
+			this.isConnected = false;
+			this.client = null;
+			this.transport = null;
 			throw error;
 		}
 	}
@@ -116,37 +121,43 @@ export class NewsScraperMCPClient {
 	 * Disconnect from the MCP server
 	 */
 	async disconnect(): Promise<void> {
-		if (!this.isConnected) return;
-
-		try {
-			await this.client.close();
-			this.isConnected = false;
-			console.log('🔌 Disconnected from MCP server');
-		} catch (error) {
-			console.error('❌ Error disconnecting:', error);
-			// Force reset connection state even if disconnect fails
-			this.isConnected = false;
+		if (this.client || this.transport) {
+			try {
+				if (this.client && this.isConnected) {
+					await this.client.close();
+				}
+			} catch (error) {
+				console.warn('Error during disconnect:', error);
+			} finally {
+				this.isConnected = false;
+				this.client = null;
+				this.transport = null;
+				console.log('🔌 Disconnected from Pharos MCP server');
+			}
 		}
 	}
 
-	/**
-	 * Get list of available MCP tools
-	 */
-	async getAvailableTools() {
-		await this.ensureConnected();
+	// Helper Methods
 
-		try {
-			const result = await this.client.listTools();
-			return result.tools;
-		} catch (error) {
-			console.error('❌ Failed to get tools:', error);
-			throw error;
+	private async ensureConnected(): Promise<void> {
+		if (!this.isConnected) {
+			await this.connect();
 		}
 	}
 
-	/**
-	 * Get list of news sources from the API
-	 */
+	private parseToolResult(result: MCPResult): any {
+		if (result?.content?.[0]?.text) {
+			try {
+				return JSON.parse(result.content[0].text);
+			} catch {
+				return result.content[0].text;
+			}
+		}
+		return result;
+	}
+
+	// News Source Management Methods
+
 	async getNewsSources(): Promise<NewsSource[]> {
 		try {
 			const response = await fetch(`${this.serverUrl}/api/news-sources`);
@@ -163,9 +174,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Get full configuration for a specific news source
-	 */
 	async getNewsSourceDetails(sourceId: string): Promise<NewsSourceDetails> {
 		try {
 			const response = await fetch(
@@ -187,9 +195,8 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Scrape a single webpage
-	 */
+	// Web Scraping Methods
+
 	async scrapeWebpage(params: {
 		url: string;
 		selector?: string;
@@ -211,7 +218,7 @@ export class NewsScraperMCPClient {
 					extract_images: params.extractImages ?? false,
 					max_content_length: params.maxContentLength,
 				},
-				60000 // 1 minute timeout for individual page scraping
+				60000
 			);
 
 			return this.parseToolResult(result);
@@ -221,9 +228,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Extract metadata from a webpage
-	 */
 	async extractMetadata(url: string): Promise<PageMetadata> {
 		await this.ensureConnected();
 
@@ -231,7 +235,7 @@ export class NewsScraperMCPClient {
 			const result = await this.callToolWithTimeout(
 				'extract_metadata',
 				{ url },
-				30000 // 30 seconds timeout for metadata extraction
+				30000
 			);
 
 			return this.parseToolResult(result);
@@ -241,9 +245,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Search content within a webpage
-	 */
 	async searchContent(params: {
 		url: string;
 		query: string;
@@ -263,7 +264,7 @@ export class NewsScraperMCPClient {
 					context_chars: params.contextChars ?? 100,
 					max_results: params.maxResults ?? 10,
 				},
-				30000 // 30 seconds timeout for content search
+				30000
 			);
 
 			return this.parseToolResult(result);
@@ -273,9 +274,8 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Extract structured article content with streaming progress
-	 */
+	// Article Processing Methods
+
 	async extractArticle(url: string): Promise<StructuredArticle> {
 		await this.ensureConnected();
 
@@ -283,7 +283,7 @@ export class NewsScraperMCPClient {
 			const result = await this.callToolWithTimeout(
 				'extract_text',
 				{ url },
-				45000 // 45 seconds timeout for text extraction
+				45000
 			);
 
 			return this.parseToolResult(result);
@@ -293,9 +293,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Extract structured article content with streaming progress updates
-	 */
 	async extractArticleWithStreaming(
 		params: {
 			url: string;
@@ -303,20 +300,31 @@ export class NewsScraperMCPClient {
 			extract_tags?: boolean;
 			estimate_reading_time?: boolean;
 		},
-		progressCallback?: (stage: string, progress: number, message: string) => void
+		progressCallback?: (
+			stage: string,
+			progress: number,
+			message: string
+		) => void
 	): Promise<any> {
 		await this.ensureConnected();
 
 		try {
-			// Since MCP doesn't support streaming callbacks directly,
-			// we'll simulate the progress stages manually and call the tool
 			progressCallback?.('fetching', 10, 'Fetching article content...');
-			
-			progressCallback?.('extracting_basic', 25, 'Extracting basic article information...');
-			
-			progressCallback?.('extracting_content', 50, 'Extracting article content...');
-			
-			progressCallback?.('extracting_metadata', 80, 'Extracting metadata...');
+			progressCallback?.(
+				'extracting_basic',
+				25,
+				'Extracting basic article information...'
+			);
+			progressCallback?.(
+				'extracting_content',
+				50,
+				'Extracting article content...'
+			);
+			progressCallback?.(
+				'extracting_metadata',
+				80,
+				'Extracting metadata...'
+			);
 
 			const result = await this.callToolWithTimeout(
 				'extract_text',
@@ -326,25 +334,29 @@ export class NewsScraperMCPClient {
 					extract_tags: params.extract_tags ?? true,
 					estimate_reading_time: params.estimate_reading_time ?? true,
 				},
-				60000 // 1 minute timeout
+				60000
 			);
 
 			progressCallback?.('saving', 95, 'Processing results...');
-
 			const parsedResult = this.parseToolResult(result);
-			
-			progressCallback?.('completed', 100, 'Article extraction completed!');
+			progressCallback?.(
+				'completed',
+				100,
+				'Article extraction completed!'
+			);
 
 			return parsedResult;
 		} catch (error) {
-			console.error('❌ Failed to extract article with streaming:', error);
+			console.error(
+				'❌ Failed to extract article with streaming:',
+				error
+			);
 			throw error;
 		}
 	}
 
-	/**
-	 * Scrape news homepages
-	 */
+	// News Homepage Scraping Methods
+
 	async scrapeNewsHomepages(params: {
 		sources: NewsSourceDetails[];
 		limit?: number;
@@ -360,7 +372,6 @@ export class NewsScraperMCPClient {
 			);
 			const startTime = Date.now();
 
-			// Convert NewsSourceDetails to the format expected by the MCP tool
 			const sites = params.sources.map((source) => ({
 				domain: new URL(source.url).hostname.replace('www.', ''),
 				name: source.name,
@@ -392,13 +403,13 @@ export class NewsScraperMCPClient {
 				'firecrawl_news_homepage',
 				{
 					urls: sites.map((s) => s.domain),
-					limit: 20,
+					limit: params.limit ?? 20,
 					includeMedia: params.includeMedia ?? true,
 					includeSections: params.includeSections ?? true,
 					includeMetrics: params.includeMetrics ?? false,
 					sortBy: params.sortBy ?? 'position',
 				},
-				600000 // 10 minutes timeout for news scraping (increased from 3 minutes)
+				600000
 			);
 
 			const duration = Date.now() - startTime;
@@ -409,15 +420,13 @@ export class NewsScraperMCPClient {
 			);
 
 			const parsed = this.parseToolResult(result);
-			// Assign UUIDs to all articles if not already a valid UUID
 			const data: Record<string, NewsArticlePreview[]> = parsed.data;
-			const uuidify = (id: string | undefined) =>
-				id && id.length === 36 ? id : uuidv4();
 			const dataWithUUIDs: Record<string, NewsArticlePreview[]> = {};
+
 			for (const [group, articles] of Object.entries(data)) {
 				dataWithUUIDs[group] = articles.map((article) => ({
 					...article,
-					id: uuidify(article.id),
+					id: article.id?.length === 36 ? article.id : uuidv4(),
 				}));
 			}
 
@@ -435,51 +444,205 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Complete news scraping pipeline
-	 */
-	async scrapeNewsPipeline(params: {
-		sources: NewsSourceDetails[];
-		limit?: number;
-		delayBetweenRequests?: number;
-		includeHtml?: boolean;
-		includeText?: boolean;
-		includeMetrics?: boolean;
-	}): Promise<any> {
+	// Article Analysis Methods
+
+	async groupArticlesByCurrentEvents(
+		articles: NewsArticlePreview[],
+		options?: {
+			maxGroups?: number;
+			minArticlesPerGroup?: number;
+			useOpenAI?: boolean;
+		}
+	): Promise<Record<string, NewsArticlePreview[]>> {
 		await this.ensureConnected();
 
 		try {
-			// Convert to expected format
-			const sites = params.sources.map((source) => ({
-				domain: new URL(source.url).hostname.replace('www.', ''),
-				name: source.name,
-				selectors: source.selectors,
-			}));
+			console.log('🤖 Grouping articles by current events:', {
+				articleCount: articles.length,
+				options,
+				sampleTitles: articles.slice(0, 3).map((a) => a.title),
+			});
 
 			const result = await this.callToolWithTimeout(
-				'scrape_news_pipeline',
+				'group_articles_by_current_events',
 				{
-					sites,
-					limit: params.limit ?? 10,
-					delayBetweenRequests: params.delayBetweenRequests ?? 1000,
-					includeHtml: params.includeHtml ?? false,
-					includeText: params.includeText ?? true,
-					includeMetrics: params.includeMetrics ?? false,
-				},
-				240000 // 4 minutes timeout for pipeline
+					articles,
+					options: options || {},
+				}
 			);
 
-			return this.parseToolResult(result);
+			const parsed = this.parseToolResult(result);
+			console.log('📊 Article grouping completed');
+
+			return parsed;
 		} catch (error) {
-			console.error('❌ Failed to run news pipeline:', error);
+			console.error('❌ Failed to group articles:', error);
 			throw error;
 		}
 	}
 
-	/**
-	 * Start a job to scrape news homepages asynchronously
-	 * Returns a job ID that can be used to check the status later
-	 */
+	async analyzeText(
+		text: string,
+		options?: {
+			sentiment?: boolean;
+			keywords?: boolean;
+			summary?: boolean;
+		}
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			const result = await this.callToolWithTimeout('analyze_text', {
+				text,
+				options: options || {},
+			});
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error('Failed to analyze text:', error);
+			throw error;
+		}
+	}
+
+	async detectCurrentEvents(
+		articles: NewsArticlePreview[],
+		timeframe?: string
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			const result = await this.callToolWithTimeout(
+				'detect_current_events',
+				{
+					articles,
+					timeframe: timeframe || '24h',
+				}
+			);
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error('Failed to detect current events:', error);
+			throw error;
+		}
+	}
+
+	// News Briefing Methods
+
+	async createNewsBriefing(
+		articles: NewsArticlePreview[],
+		options: {
+			briefingType?: 'executive' | 'detailed' | 'summary';
+			targetAudience?: 'general' | 'business' | 'technical' | 'academic';
+			includeSourceAttribution?: boolean;
+			maxSections?: number;
+			prioritizeTopics?: string[];
+		} = {}
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			const result = await this.callToolWithTimeout(
+				'create_news_briefing',
+				{
+					articles,
+					briefingType: options.briefingType || 'summary',
+					targetAudience: options.targetAudience || 'general',
+					includeSourceAttribution:
+						options.includeSourceAttribution ?? true,
+					maxSections: options.maxSections || 10,
+					prioritizeTopics: options.prioritizeTopics,
+				}
+			);
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error('Error creating news briefing:', error);
+			throw error;
+		}
+	}
+
+	async createNewsBriefingFromSummaries(
+		postIds: string[],
+		options: {
+			briefingType?: 'executive' | 'detailed' | 'summary';
+			targetAudience?: 'general' | 'business' | 'technical' | 'academic';
+			includeSourceAttribution?: boolean;
+			includeAllSections?: boolean;
+			maxSections?: number;
+			prioritizeTopics?: string[];
+		} = {}
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			const result = await this.callToolWithTimeout(
+				'create_news_briefing_from_summaries',
+				{
+					ids: postIds,
+					briefingType: options.briefingType || 'summary',
+					targetAudience: options.targetAudience || 'general',
+					includeSourceAttribution:
+						options.includeSourceAttribution ?? true,
+					includeAllSections: options.includeAllSections ?? true,
+					maxSections: options.maxSections || 10,
+					prioritizeTopics: options.prioritizeTopics,
+				}
+			);
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error(
+				'Error creating news briefing from summaries:',
+				error
+			);
+			throw error;
+		}
+	}
+
+	async summarizeArticlesBatch(
+		articles: {
+			title: string;
+			content: string;
+			source?: string;
+			date?: string;
+		}[],
+		audience:
+			| 'general'
+			| 'investor'
+			| 'academic'
+			| 'technical'
+			| 'executive' = 'general',
+		detail: 'brief' | 'standard' | 'comprehensive' = 'brief',
+		model?: string
+	): Promise<any> {
+		await this.ensureConnected();
+
+		try {
+			console.log('🔍 Summarizing articles batch:', {
+				articlesCount: articles.length,
+				audience,
+				detail,
+				model,
+			});
+
+			const result = await this.callToolWithTimeout(
+				'summarize_articles_batch',
+				{
+					articles,
+					audience,
+					detail,
+					...(model && { model }),
+				}
+			);
+
+			return this.parseToolResult(result);
+		} catch (error) {
+			console.error('Error summarizing articles batch:', error);
+			throw error;
+		}
+	}
+
+	// Job-related methods
 	async startHomepageFirecrawlJob(params: {
 		urls: string[];
 		limit?: number;
@@ -502,7 +665,7 @@ export class NewsScraperMCPClient {
 					urls: params.urls,
 					limit: params.limit ?? 20,
 				},
-				30000 // 30 seconds timeout just for starting the job
+				30000
 			);
 
 			const parsedResult = this.parseToolResult(result);
@@ -515,10 +678,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Start a job to extract article content from URLs asynchronously
-	 * Returns a job ID that can be used to check the status later
-	 */
 	async startArticleExtractFirecrawlJob(params: {
 		urls?: string[];
 		limit?: number;
@@ -545,7 +704,7 @@ export class NewsScraperMCPClient {
 					limit: params.limit,
 					webhookUrl: params.webhookUrl,
 				},
-				30000 // 30 seconds timeout just for starting the job
+				30000
 			);
 
 			const parsedResult = this.parseToolResult(result);
@@ -560,9 +719,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Start a homepage HTML scraper job using local parsing (no Firecrawl)
-	 */
 	async startHomepageHtmlScraperJob(params: {
 		urls: string[];
 		limit?: number;
@@ -585,10 +741,10 @@ export class NewsScraperMCPClient {
 					urls: params.urls,
 					limit: params.limit || 20,
 				},
-				60000 // 60 seconds timeout since this processes synchronously
+				60000
 			);
 
-			const parsedResult = JSON.parse(result.content[0].text);
+			const parsedResult = this.parseToolResult(result);
 			console.log(
 				`✅ Completed HTML scraper job: ${parsedResult.totalArticlesProcessed} articles processed`
 			);
@@ -600,9 +756,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Start an article HTML scraper job using local parsing (no Firecrawl)
-	 */
 	async startArticleHtmlScraperJob(params: {
 		postIds?: string[];
 		limit?: number;
@@ -632,10 +785,10 @@ export class NewsScraperMCPClient {
 					postIds: params.postIds,
 					limit: params.limit || 50,
 				},
-				120000 // 2 minutes timeout since this processes article content
+				120000
 			);
 
-			const parsedResult = JSON.parse(result.content[0].text);
+			const parsedResult = this.parseToolResult(result);
 			console.log(
 				`✅ Completed HTML article extraction job: ${parsedResult.totalArticlesProcessed} articles processed`
 			);
@@ -650,9 +803,6 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	/**
-	 * Convenience method to get and scrape selected sources
-	 */
 	async scrapeSelectedSources(
 		sourceIds: string[],
 		options?: {
@@ -672,7 +822,6 @@ export class NewsScraperMCPClient {
 				sources: sourceDetails,
 				...options,
 			});
-			// Already UUID-ified in scrapeNewsHomepages
 			return data;
 		} catch (error) {
 			console.error('❌ Failed to scrape selected sources:', error);
@@ -680,30 +829,13 @@ export class NewsScraperMCPClient {
 		}
 	}
 
-	// Private helper methods
-	private async ensureConnected(): Promise<void> {
-		if (!this.isConnected) {
-			await this.connect();
-		}
-	}
-
-	private parseToolResult(result: MCPResult): any {
-		try {
-			if (result.content && result.content[0] && result.content[0].text) {
-				return JSON.parse(result.content[0].text);
-			}
-			return result;
-		} catch (error) {
-			console.warn(
-				'⚠️ Could not parse tool result as JSON, returning raw result'
-			);
-			return result;
-		}
+	get connected(): boolean {
+		return this.isConnected && this.client !== null;
 	}
 }
 
 // Export a singleton instance for easy use
-export const mcpClient = new NewsScraperMCPClient();
+export const pharosClient = new PharosClient();
 
-// Export types for use in components
-export type { NewsSource, NewsSourceDetails, MCPClientConfig };
+// Export types
+export type { NewsSource, NewsSourceDetails, PharosClientConfig };

@@ -5,9 +5,6 @@ import { createContainer } from './container.js';
 import { injectable, inject } from 'inversify';
 import { TYPES } from './types/di.types.js';
 import config from './config.js';
-import { NewsSourcesController } from './controllers/NewsSourcesController.js';
-import { ArticleController } from './controllers/ArticleController.js';
-
 type Config = typeof config;
 @injectable()
 class PharosServer {
@@ -58,11 +55,7 @@ class PharosServer {
 		this.server.registerTools(this.tools);
 
 		// Register controllers
-		this.server.registerControllers([
-			ModelsController,
-			NewsSourcesController,
-			ArticleController,
-		]);
+		this.server.registerControllers([ModelsController]);
 
 		// Log startup information
 		console.log(

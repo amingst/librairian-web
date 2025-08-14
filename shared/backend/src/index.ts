@@ -14,3 +14,5 @@ export {
 	del,
 	registerControllers,
 } from './controller/controller.decorator.js';
+export { IMCPPrompt, MCPPrompt, CallbackType } from './prompt.js';
+export { IMCPResource, MCPResource, ConfigMetadata } from './resource.js';

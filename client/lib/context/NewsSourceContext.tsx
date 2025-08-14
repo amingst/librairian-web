@@ -7,7 +7,7 @@ import React, {
 	useCallback,
 	useEffect,
 } from 'react';
-import { mcpClient, type NewsSource } from '../mcp-client';
+import { pharosClient, type NewsSource } from '../pharos-client';
 
 interface SourceSettings {
 	enabled: boolean;
@@ -89,14 +89,15 @@ export function NewsSourcesProvider({
 		setError(null);
 
 		try {
-			const fetchedSources = await mcpClient.getNewsSources();
-			setSources(fetchedSources);
+			const fetchedSources = await fetch('/api/pharos/news-sources');
+			const body: NewsSource[] = await fetchedSources.json();
+			setSources(body);
 
 			// Initialize settings for new sources
 			setSourceSettings((current) => {
 				const updated = { ...current };
 
-				fetchedSources.forEach((source) => {
+				body.forEach((source) => {
 					if (!updated[source.id]) {
 						updated[source.id] = createDefaultSettings(source);
 					}

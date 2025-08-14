@@ -32,6 +32,8 @@
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.59.0",
+		"@dotenvx/dotenvx": "^1.48.4",
 		"@mendable/firecrawl": "^1.29.2",
 		"@mendable/firecrawl-js": "^1.29.2",
 		"@modelcontextprotocol/sdk": "^1.17.0",
@@ -42,11 +44,10 @@
 		"cheerio": "^1.1.2",
 		"express": "^5.1.0",
 		"inversify": "^7.6.1",
+		"openai": "^4.77.0",
 		"puppeteer": "^24.15.0",
 		"reflect-metadata": "^0.2.2",
-		"zod": "^3.25.76",
 		"uuid": "^11.1.0",
-		"openai": "^4.77.0",
-		"@anthropic-ai/sdk": "^0.59.0"
+		"zod": "^3.25.76"
 	}
 }

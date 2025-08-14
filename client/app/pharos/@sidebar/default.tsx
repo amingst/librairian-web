@@ -1,13 +1,9 @@
+import { getBriefings } from '@/app/actions/pharos/briefings';
 import { Suspense } from 'react';
 
 // Server component to fetch pharos sidebar data
 async function getPharosSidebarData() {
-	// This could fetch from your database, API, etc.
-	// For now, I'll return static data, but you can replace with actual server calls
-
-	// Simulate API call delay
-	await new Promise((resolve) => setTimeout(resolve, 100));
-
+	const briefings = await getBriefings(4);
 	return {
 		navMain: [
 			{
@@ -59,6 +55,7 @@ async function getPharosSidebarData() {
 			},
 			// Add more recent articles from server
 		],
+		briefings,
 		stats: {
 			totalArticles: 8742,
 			sourcesMonitored: 156,

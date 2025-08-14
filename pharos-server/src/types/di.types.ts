@@ -1,6 +1,5 @@
-import { IMCPTool } from '@shared/backend';
+import { IMCPTool, IMCPPrompt, IMCPResource } from '@shared/backend';
 import { TYPES } from './symbols.js';
-import { PrismaClient } from '@prisma/client'; // Import PrismaClient
 import { StartHomepageFirecrawlJob } from '../tools/StartHomepageFirecrawlJob.js';
 import { StartFirecrawlExtractArticleJob } from '../tools/StartFirecrawlExtractArticleJob.js';
 import { StartHomepageHtmlScraperJob } from '../tools/StartHomepageHtmlScraperJob.js';
@@ -17,12 +16,25 @@ export { TYPES };
 
 // Define types
 export type ToolConstructor = new (...args: any[]) => IMCPTool;
+export type PromptContsructor = new (...args: any[]) => IMCPPrompt;
+export type ResourceConstructor = new (...args: any[]) => IMCPResource;
 export type ToolKeys = Exclude<
 	keyof typeof TYPES,
 	'NewsScraperServer' | 'Config' | 'PrismaClient'
 >;
+export type PromptKeys = Exclude<keyof typeof TYPES, 'Config' | 'PrismaClient'>;
+export type ResourceKeys = Exclude<
+	keyof typeof TYPES,
+	'Config' | 'PrismaClient'
+>;
 export type ToolMap = {
 	[K in ToolKeys]: ToolConstructor;
+};
+export type PromptMap = {
+	[K in PromptKeys]: PromptContsructor;
+};
+export type ResourceMap = {
+	[K in ResourceKeys]: ResourceConstructor;
 };
 
 // Define tool map
@@ -39,3 +51,5 @@ export const TOOL_MAP: ToolMap = {
 	ArticleSummarizer: ArticleSummarizerTool,
 	NewsBriefingFromSummaries: NewsBriefingFromSummariesTool,
 };
+
+// export const PROMPT_MAP: PromptMap = {};

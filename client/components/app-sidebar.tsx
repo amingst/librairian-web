@@ -15,6 +15,7 @@ import { NavMain } from '@/components/nav-main';
 import { NavProjects } from '@/components/nav-projects';
 import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
+import { NavBriefings } from '@/components/nav-briefings';
 import { PlatformSwitcher } from '@/components/platform-switcher';
 import { useSidebarData, fallbackSidebarData } from '@/hooks/use-sidebar-data';
 import {
@@ -118,6 +119,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarHeader>
 			<SidebarContent>
 				<NavMain items={processedNavMain} />
+				{currentPlatform === 'pharos' && (
+					<NavBriefings briefings={platformData.briefings || []} />
+				)}
 				<NavProjects projects={processedProjects} />
 				{/* Settings - shared across platforms */}
 				<NavMain items={sharedData.settings} />
