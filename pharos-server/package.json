@@ -1,11 +1,11 @@
 {
-	"name": "@server/news-scraper",
+	"name": "pharos-server",
 	"version": "1.0.0",
-	"description": "MCP server for HTML scraping and content extraction",
+	"description": "Server For The Pharos News analysis Platform",
 	"main": "build/main.js",
 	"type": "module",
 	"bin": {
-		"@server/news-scraper": "./build/main.js"
+		"@pharos-server": "./build/main.js"
 	},
 	"scripts": {
 		"build": "tsc && chmod +x build/main.js",
@@ -44,6 +44,9 @@
 		"inversify": "^7.6.1",
 		"puppeteer": "^24.15.0",
 		"reflect-metadata": "^0.2.2",
-		"zod": "^3.25.76"
+		"zod": "^3.25.76",
+		"uuid": "^11.1.0",
+		"openai": "^4.77.0",
+		"@anthropic-ai/sdk": "^0.59.0"
 	}
 }

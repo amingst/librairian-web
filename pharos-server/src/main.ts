@@ -1,21 +1,27 @@
 import 'reflect-metadata';
 import { MCPHttpServer, IMCPTool } from '@shared/backend';
-import { ArticleGrouperTool } from './tools/ArticleGrouper.js';
-import { TextAnalysisTool } from './tools/TextAnalysis.js';
-import { CurrentEventsDetectorTool } from './tools/CurrentEventsDetector.js';
-import { BatchArticleExtractorTool } from './tools/BatchArticleExtractor.js';
 import { ModelsController } from './controllers/ModelsController.js';
 import { createContainer } from './container.js';
 import { injectable, inject } from 'inversify';
 import { TYPES } from './types/di.types.js';
-import { ModelService } from './services/ModelService.js';
 import config from './config.js';
+import { NewsSourcesController } from './controllers/NewsSourcesController.js';
+import { ArticleController } from './controllers/ArticleController.js';
 
 type Config = typeof config;
-
 @injectable()
-class TextAnalysis {
+class PharosServer {
 	constructor(
+		@inject(MCPHttpServer) private readonly server: MCPHttpServer,
+		@inject(TYPES.Config) private readonly config: Config,
+		@inject(TYPES.StartHomepageFirecrawlJob)
+		private readonly startHomepageFirecrawlJob: IMCPTool,
+		@inject(TYPES.StartFirecrawlExtractArticleJob)
+		private readonly startFirecrawlExtractArticleJob: IMCPTool,
+		@inject(TYPES.StartHomepageHtmlScraperJob)
+		private readonly startHomepageHtmlScraperJob: IMCPTool,
+		@inject(TYPES.StartArticleHtmlScraperJob)
+		private readonly startArticleHtmlScraperJob: IMCPTool,
 		@inject(TYPES.ArticleGrouper) private readonly articleGrouper: IMCPTool,
 		@inject(TYPES.TextAnalysis) private readonly textAnalysis: IMCPTool,
 		@inject(TYPES.CurrentEventsDetector)
@@ -24,24 +30,26 @@ class TextAnalysis {
 		private readonly batchArticleExtractor: IMCPTool,
 		@inject(TYPES.NewsBriefing) private readonly newsBriefing: IMCPTool,
 		@inject(TYPES.ArticleSummarizer)
-		private readonly articleSummarizer: IMCPTool, // Added
+		private readonly articleSummarizer: IMCPTool,
 		@inject(TYPES.NewsBriefingFromSummaries)
-		private readonly newsBriefingFromSummaries: IMCPTool, // Added
-		@inject(MCPHttpServer) private readonly server: MCPHttpServer,
-		@inject(TYPES.Config) private readonly config: Config
+		private readonly newsBriefingFromSummaries: IMCPTool
 	) {
 		this.setupShutdownHandlers();
 	}
 
 	private get tools(): IMCPTool[] {
 		return [
+			this.startHomepageFirecrawlJob,
+			this.startFirecrawlExtractArticleJob,
+			this.startHomepageHtmlScraperJob,
+			this.startArticleHtmlScraperJob,
 			this.articleGrouper,
 			this.textAnalysis,
 			this.currentEventsDetector,
 			this.batchArticleExtractor,
 			this.newsBriefing,
-			this.articleSummarizer, // Added
-			this.newsBriefingFromSummaries, // Added
+			this.articleSummarizer,
+			this.newsBriefingFromSummaries,
 		];
 	}
 
@@ -50,7 +58,11 @@ class TextAnalysis {
 		this.server.registerTools(this.tools);
 
 		// Register controllers
-		this.server.registerControllers([ModelsController]);
+		this.server.registerControllers([
+			ModelsController,
+			NewsSourcesController,
+			ArticleController,
+		]);
 
 		// Log startup information
 		console.log(
@@ -85,9 +97,9 @@ class TextAnalysis {
 // Bootstrap the application
 async function bootstrap() {
 	const container = createContainer();
-	container.bind(TextAnalysis).toSelf().inSingletonScope();
+	container.bind(PharosServer).toSelf().inSingletonScope();
 
-	const program = container.get(TextAnalysis);
+	const program = container.get(PharosServer);
 	await program.start();
 }
 

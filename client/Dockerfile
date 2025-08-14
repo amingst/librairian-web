@@ -1,23 +1,38 @@
-# Use the official Node.js runtime as the base image
-FROM node:18-alpine
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy package.json and package-lock.json (if available)
-COPY package*.json ./
+# Use Node.js 24 as base
+FROM node:24-alpine3.21
 
 # Install dependencies
-RUN npm ci --only=production
+RUN apk add --no-cache libc6-compat
 
-# Copy the rest of the application code
-COPY . .
+WORKDIR /app
 
-# Build the Next.js application
+# Copy root package files
+COPY package*.json ./
+COPY turbo.json ./
+
+# Copy workspace package files
+COPY shared/types/package*.json ./shared/types/
+COPY shared/backend/package*.json ./shared/backend/
+COPY client/package*.json ./client/
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY shared/types/ ./shared/types/
+COPY shared/backend/ ./shared/backend/
+COPY client/ ./client/
+
+# Build shared packages and client
 RUN npm run build
 
-# Expose the port the app runs on
+# Set working directory to client
+WORKDIR /app/client
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+
 EXPOSE 3000
 
-# Define the command to run the application
 CMD ["npm", "start"]

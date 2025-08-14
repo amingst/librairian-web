@@ -1,55 +1,6 @@
 version: '3.8'
 
 services:
-    # HTML Scraper MCP Service (Development)
-    server-news-scraper-dev:
-        build:
-            context: .
-            dockerfile: server/news-scraper/Dockerfile.dev
-        container_name: server-news-scraper-dev
-        restart: unless-stopped
-        ports:
-            - '3001:3001'
-        environment:
-            - NODE_ENV=development
-            - PORT=3001
-            - HOST=0.0.0.0
-            - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-            - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
-            - REDIS_URL=redis://redis:6379
-        env_file:
-            - server/news-scraper/.env
-        volumes:
-            - ./server/news-scraper/src:/app/server/news-scraper/src
-            - ./shared/types/src:/app/shared/types/src
-            - ./shared/backend/src:/app/shared/backend/src
-        networks:
-            - news-scraper-network
-
-    # Text Analysis MCP Service (Development)
-    server-text-analysis-dev:
-        build:
-            context: .
-            dockerfile: server/text-analysis/Dockerfile.dev
-        container_name: server-text-analysis-dev
-        restart: unless-stopped
-        ports:
-            - '3002:3002'
-        environment:
-            - NODE_ENV=development
-            - PORT=3002
-            - HOST=0.0.0.0
-            - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/news_scraper_dev
-            - REDIS_URL=redis://redis:6379
-        env_file:
-            - server/text-analysis/.env
-        volumes:
-            - ./server/text-analysis/src:/app/server/text-analysis/src
-            - ./shared/types/src:/app/shared/types/src
-            - ./shared/backend/src:/app/shared/backend/src
-        networks:
-            - news-scraper-network
-
     # Next.js Client Application (Development)
     client-dev:
         build:
@@ -63,20 +14,16 @@ services:
             - NODE_ENV=development
             - PORT=3000
             - NEXT_TELEMETRY_DISABLED=1
-            - HTML_SCRAPER_URL=http://server-news-scraper-dev:3001
-            - TEXT_ANALYSIS_URL=http://server-text-analysis-dev:3002
+            - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/librairian_dev
             - REDIS_URL=redis://redis:6379
         volumes:
-            - ./client/src:/app/client/src
+            - ./client:/app/client
             - ./shared:/app/shared
-            - ./client/public:/app/client/public
         depends_on:
-            - server-news-scraper-dev
-            - server-text-analysis-dev
             - postgres
             - redis
         networks:
-            - news-scraper-network
+            - librairian-network-dev
 
     # Redis Cache (Development)
     redis:
@@ -87,7 +34,7 @@ services:
             - '6379:6379'
         command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
         networks:
-            - news-scraper-network
+            - librairian-network-dev
         healthcheck:
             test: ['CMD', 'redis-cli', 'ping']
             interval: 10s
@@ -104,14 +51,14 @@ services:
         ports:
             - '5432:5432'
         environment:
-            - POSTGRES_DB=jfk_files
+            - POSTGRES_DB=librairian_dev
             - POSTGRES_USER=postgres
-            - POSTGRES_PASSWORD=password
+            - POSTGRES_PASSWORD=postgres
         volumes:
             - postgres_dev_data:/var/lib/postgresql/data
-            - ./client/prisma/add_fulltext_index.sql:/docker-entrypoint-initdb.d/add_fulltext_index.sql
+            - ./prisma/sql/add_fulltext_index.sql:/docker-entrypoint-initdb.d/add_fulltext_index.sql
         networks:
-            - news-scraper-network
+            - librairian-network-dev
         healthcheck:
             test: ['CMD-SHELL', 'pg_isready -U postgres']
             interval: 10s
@@ -134,7 +81,7 @@ services:
         depends_on:
             - postgres
         networks:
-            - news-scraper-network
+            - librairian-network-dev
 
 volumes:
     postgres_dev_data:
@@ -143,5 +90,5 @@ volumes:
         driver: local
 
 networks:
-    news-scraper-network:
+    librairian-network-dev:
         driver: bridge

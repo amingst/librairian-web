@@ -69,7 +69,9 @@ export class ModelsController {
 			// Log each model with details
 			modelsList.data.forEach((model) => {
 				console.log(
-					`  - ${model.id} (${model.object}, created: ${new Date(model.created * 1000).toISOString()})`
+					`  - ${model.id} (${model.object}, created: ${new Date(
+						model.created * 1000
+					).toISOString()})`
 				);
 			});
 
@@ -118,7 +120,9 @@ export class ModelsController {
 			// Log each model with details
 			modelsList.data.forEach((model) => {
 				console.log(
-					`  - ${model.id} (${model.object}, created: ${new Date(model.created * 1000).toISOString()})`
+					`  - ${model.id} (${model.object}, created: ${new Date(
+						model.created * 1000
+					).toISOString()})`
 				);
 			});
 

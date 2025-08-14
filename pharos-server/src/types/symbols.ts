@@ -1,8 +1,3 @@
-import { StartHomepageFirecrawlJob } from '../tools/StartHomepageFirecrawlJob.js';
-import { StartFirecrawlExtractArticleJob } from '../tools/StartFirecrawlExtractArticleJob.js';
-import { StartHomepageHtmlScraperJob } from '../tools/StartHomepageHtmlScraperJob.js';
-import { StartArticleHtmlScraperJob } from '../tools/StartArticleHtmlScraperJob.js';
-
 export const TYPES = {
 	Config: Symbol.for('Config'),
 	PrismaClient: Symbol.for('PrismaClient'),
@@ -12,4 +7,11 @@ export const TYPES = {
 	),
 	StartHomepageHtmlScraperJob: Symbol.for('StartHomepageHtmlScraperJob'),
 	StartArticleHtmlScraperJob: Symbol.for('StartArticleHtmlScraperJob'),
+	ArticleGrouper: Symbol.for('ArticleGrouper'),
+	TextAnalysis: Symbol.for('TextAnalysis'),
+	CurrentEventsDetector: Symbol.for('CurrentEventsDetector'),
+	BatchArticleExtractor: Symbol.for('BatchArticleExtractor'),
+	NewsBriefing: Symbol.for('NewsBriefing'),
+	ArticleSummarizer: Symbol.for('ArticleSummarizer'),
+	NewsBriefingFromSummaries: Symbol.for('NewsBriefingFromSummaries'),
 } as const;

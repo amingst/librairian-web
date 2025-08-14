@@ -5,40 +5,19 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-# Copy package files for workspace setup
+# Copy root package files
 COPY package*.json ./
+COPY turbo.json ./
+
+# Copy workspace package files
 COPY shared/types/package*.json ./shared/types/
 COPY shared/backend/package*.json ./shared/backend/
 COPY client/package*.json ./client/
 
-# Install workspace dependencies
+# Install all dependencies
 RUN npm install
 
-# Install shared package dependencies
-WORKDIR /app/shared/types
-RUN npm install
-
-WORKDIR /app/shared/backend
-RUN npm install
-
-# Install client package dependencies specifically
-WORKDIR /app/client
-RUN npm install
-
-# Copy source code
-WORKDIR /app
-COPY shared/types/ ./shared/types/
-COPY shared/backend/ ./shared/backend/
-COPY client/ ./client/
-
-# Build shared packages
-WORKDIR /app/shared/types
-RUN npm run build
-
-WORKDIR /app/shared/backend
-RUN npm run build
-
-# Set working directory to the client
+# Set working directory to client
 WORKDIR /app/client
 
 ENV NODE_ENV=development
@@ -47,5 +26,5 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 EXPOSE 3000
 
-# Use development command without Turbopack (which has issues in Docker)
-CMD ["npm", "run", "dev:docker"]
+# Use development command
+CMD ["npm", "run", "dev"]
