@@ -67,20 +67,33 @@ export class BriefingResource extends MCPResource {
 					throw new Error(`Briefing not found: ${briefingId}`);
 				}
 
-				// Format briefing content for RAG
+				// Format briefing content for RAG with improved structure
 				const content = [
-					`# ${briefing.title}\n`,
-					`${briefing.summary}\n`,
+					`# ${briefing.title}`,
+					`\nExecutive Summary: ${briefing.summary}\n`,
 					...briefing.sections.map(
 						(section: BriefingSection) => `
-## ${section.topic}: ${section.headline}
+## ${section.headline || section.topic}
+Importance: ${section.importance || 'medium'}
+
 ${section.summary}
 
 Key Points:
 ${section.keyPoints.map((point: string) => `- ${point}`).join('\n')}
-          `
+
+Sources:
+${(section.sources || [])
+	.map((s: any) => `- ${s.title} (${s.source}): ${s.link}`)
+	.join('\n')}
+`
 					),
 				].join('\n');
+
+				// Collect all topics and sources for metadata
+				const topics = briefing.sections.map(s => s.topic).filter(Boolean);
+				const allSources = briefing.sections
+					.flatMap(s => s.sources || [])
+					.map(s => ({ title: s.title, url: s.link, source: s.source }));
 
 				return {
 					contents: [
@@ -90,7 +103,11 @@ ${section.keyPoints.map((point: string) => `- ${point}`).join('\n')}
 							metadata: {
 								title: briefing.title,
 								createdAt: briefing.createdAt,
-								sources: briefing.sources,
+								summary: briefing.summary,
+								topics,
+								sources: allSources,
+								sectionCount: briefing.sections.length,
+								type: 'news-briefing'
 							},
 						},
 					],

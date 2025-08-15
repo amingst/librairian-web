@@ -11,6 +11,7 @@ import { BatchArticleExtractorTool } from '../tools/BatchArticleExtractor.js';
 import { NewsBriefingTool } from '../tools/NewsBriefingTool.js';
 import { ArticleSummarizerTool } from '../tools/ArticleSummarizer.js';
 import { NewsBriefingFromSummariesTool } from '../tools/NewsBriefingFromSummariesTool.js';
+import { BriefingRagTool } from '../tools/BriefingRagTool.js';
 
 export { TYPES };
 
@@ -50,6 +51,7 @@ export const TOOL_MAP: ToolMap = {
 	NewsBriefing: NewsBriefingTool,
 	ArticleSummarizer: ArticleSummarizerTool,
 	NewsBriefingFromSummaries: NewsBriefingFromSummariesTool,
+	BriefingRag: BriefingRagTool,
 };
 
 // export const PROMPT_MAP: PromptMap = {};

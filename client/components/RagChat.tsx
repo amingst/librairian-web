@@ -35,10 +35,11 @@ export default function RagChat() {
 		}
 	}, [messages.length]);
 
-	const send = () => {
+	const send = async () => {
 		const text = input.trim();
 		if (!text) return;
 
+		// Add user message immediately
 		setMessages((prev) => [
 			...prev,
 			{
@@ -49,6 +50,55 @@ export default function RagChat() {
 			},
 		]);
 		setInput('');
+
+		try {
+			const briefingId = localStorage.getItem('lastNewsBriefing')
+				? JSON.parse(localStorage.getItem('lastNewsBriefing')!).id
+				: null;
+
+			if (!briefingId) {
+				throw new Error('No briefing loaded');
+			}
+
+			const response = await fetch('/api/pharos/briefing/rag', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					query: text,
+					briefingId,
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to get RAG response');
+			}
+
+			const data = await response.json();
+
+			// Add RAG response
+			setMessages((prev) => [
+				...prev,
+				{
+					id: crypto.randomUUID(),
+					role: 'rag',
+					content: data.response,
+					ts: Date.now(),
+				},
+			]);
+		} catch (error) {
+			// Add error message
+			setMessages((prev) => [
+				...prev,
+				{
+					id: crypto.randomUUID(),
+					role: 'rag',
+					content: 'Sorry, I had trouble processing your request. Please try again.',
+					ts: Date.now(),
+				},
+			]);
+		}
 	};
 
 	const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

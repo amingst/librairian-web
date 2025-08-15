@@ -14,4 +14,5 @@ export const TYPES = {
 	NewsBriefing: Symbol.for('NewsBriefing'),
 	ArticleSummarizer: Symbol.for('ArticleSummarizer'),
 	NewsBriefingFromSummaries: Symbol.for('NewsBriefingFromSummaries'),
+	BriefingRag: Symbol.for('BriefingRag'),
 } as const;
