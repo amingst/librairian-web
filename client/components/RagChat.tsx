@@ -88,13 +88,15 @@ export default function RagChat() {
 				},
 			]);
 		} catch (error) {
+			console.error(`Error fetching RAG response: ${error}`);
 			// Add error message
 			setMessages((prev) => [
 				...prev,
 				{
 					id: crypto.randomUUID(),
 					role: 'rag',
-					content: 'Sorry, I had trouble processing your request. Please try again.',
+					content:
+						'Sorry, I had trouble processing your request. Please try again.',
 					ts: Date.now(),
 				},
 			]);

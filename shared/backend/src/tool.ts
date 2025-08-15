@@ -7,12 +7,15 @@ export interface IMCPTool {
 	register(server: McpServer): void;
 }
 export abstract class MCPTool implements IMCPTool {
+	protected server?: McpServer;
+
 	abstract get name(): string;
 	abstract get description(): string;
 	abstract get schema(): Record<string, any>;
 	abstract execute(params: any): Promise<any>;
 
 	register(server: McpServer): void {
+		this.server = server;
 		server.tool(
 			this.name,
 			this.description,

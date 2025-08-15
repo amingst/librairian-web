@@ -30,7 +30,9 @@ class PharosServer {
 		@inject(TYPES.ArticleSummarizer)
 		private readonly articleSummarizer: IMCPTool,
 		@inject(TYPES.NewsBriefingFromSummaries)
-		private readonly newsBriefingFromSummaries: IMCPTool
+		private readonly newsBriefingFromSummaries: IMCPTool,
+		@inject(TYPES.BriefingRag)
+		private readonly briefingRag: IMCPTool
 	) {
 		this.setupShutdownHandlers();
 	}
@@ -48,6 +50,7 @@ class PharosServer {
 			this.newsBriefing,
 			this.articleSummarizer,
 			this.newsBriefingFromSummaries,
+			this.briefingRag,
 		];
 	}
 
