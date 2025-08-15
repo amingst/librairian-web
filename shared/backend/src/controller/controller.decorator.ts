@@ -6,7 +6,7 @@ const ROUTES_METADATA_KEY = Symbol('routes');
 type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch';
 const CONTROLLER_REGISTRY: { basePath: string; router: Router }[] = [];
 
-interface RouteDefinition {
+export interface RouteDefinition {
 	method: HttpMethod;
 	path: string;
 	handler: string;

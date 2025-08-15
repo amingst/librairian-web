@@ -3,6 +3,7 @@
 		"target": "ES2022",
 		"module": "Node16",
 		"moduleResolution": "Node16",
+		"lib": ["ES2022"],
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
 		"types": ["reflect-metadata", "node"],
@@ -14,7 +15,10 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"declaration": true,
-		"sourceMap": true
+		"sourceMap": true,
+		"incremental": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "build"]

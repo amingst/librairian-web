@@ -1,8 +1,9 @@
 {
 	"compilerOptions": {
-		"target": "ES2020",
-		"module": "CommonJS",
-		"lib": ["ES2020", "DOM"],
+		"target": "ES2022",
+		"module": "Node16",
+		"moduleResolution": "Node16",
+		"lib": ["ES2022", "DOM"],
 		"types": ["node", "reflect-metadata"],
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
@@ -10,6 +11,7 @@
 		"rootDir": "./src",
 		"strict": true,
 		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"declaration": true,
@@ -18,10 +20,12 @@
 		"removeComments": false,
 		"noImplicitAny": true,
 		"noImplicitReturns": true,
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
 		"exactOptionalPropertyTypes": true,
-		"moduleResolution": "node"
+		"incremental": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]

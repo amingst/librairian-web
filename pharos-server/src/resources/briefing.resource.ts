@@ -14,7 +14,7 @@ async function getBriefing(id: string): Promise<NewsBriefing | null> {
 			`http://localhost:3000/api/pharos/briefing/${id}`
 		);
 		if (!response.ok) return null;
-		const data = await response.json();
+		const data = (await response.json()) as { briefing: NewsBriefing };
 		return data.briefing;
 	} catch (error) {
 		console.error('Error fetching briefing:', error);
@@ -90,10 +90,16 @@ ${(section.sources || [])
 				].join('\n');
 
 				// Collect all topics and sources for metadata
-				const topics = briefing.sections.map(s => s.topic).filter(Boolean);
+				const topics = briefing.sections
+					.map((s) => s.topic)
+					.filter(Boolean);
 				const allSources = briefing.sections
-					.flatMap(s => s.sources || [])
-					.map(s => ({ title: s.title, url: s.link, source: s.source }));
+					.flatMap((s) => s.sources || [])
+					.map((s) => ({
+						title: s.title,
+						url: s.link,
+						source: s.source,
+					}));
 
 				return {
 					contents: [
@@ -107,7 +113,7 @@ ${(section.sources || [])
 								topics,
 								sources: allSources,
 								sectionCount: briefing.sections.length,
-								type: 'news-briefing'
+								type: 'news-briefing',
 							},
 						},
 					],

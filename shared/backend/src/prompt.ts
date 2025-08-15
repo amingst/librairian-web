@@ -1,11 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
-import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
-import {
+import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type {
 	ServerRequest,
 	ServerNotification,
 	GetPromptResult,
-} from '@modelcontextprotocol/sdk/types';
+} from '@modelcontextprotocol/sdk/types.js';
 
 export type CallbackType = (
 	args: {

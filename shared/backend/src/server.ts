@@ -3,8 +3,6 @@ import type { Express } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Implementation as MCPImplementation } from '@modelcontextprotocol/sdk/types.js';
 import { ServerOptions as MCPServerOptions } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { inject, injectable } from 'inversify';
 import { PrismaClientFactory } from './PrismaClientFactory.js';
 import { PrismaClient } from '@prisma/client';
@@ -32,10 +30,6 @@ export class MCPHttpServer {
 	private expressApp: Express;
 	private httpServer: any;
 	private registeredTools: Map<string, any> = new Map();
-	private readonly transports = {
-		streamable: {} as Record<string, StreamableHTTPServerTransport>,
-		sse: {} as Record<string, SSEServerTransport>,
-	};
 	private prisma: PrismaClient;
 	private registeredResources: Map<string, any> = new Map();
 	private registeredPrompts: Map<string, any> = new Map();

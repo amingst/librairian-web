@@ -6,7 +6,7 @@ export interface SelectInput extends Record<string, any> {}
 export interface IncludeInput extends Record<string, any> {}
 export interface OrderByInput extends Record<string, any> {}
 
-export type FindManyOptions<T> = {
+export type FindManyOptions = {
 	where?: WhereInput;
 	select?: SelectInput;
 	include?: IncludeInput;
@@ -43,7 +43,7 @@ export abstract class Repository<T> {
 		}
 	}
 
-	async findMany(options: FindManyOptions<T> = {}): Promise<T[]> {
+	async findMany(options: FindManyOptions = {}): Promise<T[]> {
 		try {
 			return await (this.prisma as any)[this.modelName].findMany(options);
 		} catch (error) {
